@@ -98,7 +98,7 @@ class Reporter:
         self.bar = tqdm(total=total, desc=f"{_TASKS.get(task, task)} / {length}", unit="req",
                         file=self.progress_stream, mininterval=1.0, miniters=1,
                         dynamic_ncols=self.progress_stream.isatty(),
-                        ncols=None if self.progress_stream.isatty() else 120, ascii=True, leave=True,
+                        ncols=None if self.progress_stream.isatty() else 120, ascii=False, leave=True,
                         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]")
 
     def update(self, row):

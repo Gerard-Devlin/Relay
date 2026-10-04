@@ -1,0 +1,33 @@
+{
+  "settings": {
+    "method": "relay_dream",
+    "model": "Dream-org/Dream-v0-Instruct-7B",
+    "revision": "05334cb9faaf763692dcf9d8737c642be2b2a6ae",
+    "stripe_width": 8,
+    "history_budget": 128,
+    "lengths": [
+      256,
+      512
+    ],
+    "seed": 51713,
+    "precision": "BF16",
+    "alg": "entropy",
+    "alg_temp": 0.0,
+    "temperature": 0.0,
+    "top_p": null,
+    "top_k": null,
+    "eps": 0.001,
+    "steps": {
+      "256": 256,
+      "512": 512
+    },
+    "verify": false,
+    "schedule": "Official DREAM full-canvas diffusion sampler"
+  },
+  "datasets": {
+    "gsm8k": "gsm8k_paper_5shot.json",
+    "humaneval": "humaneval_test.json",
+    "mbpp": "mbpp_paper_3shot.json",
+    "math": "math_paper_4shot_v2.json"
+  }
+}

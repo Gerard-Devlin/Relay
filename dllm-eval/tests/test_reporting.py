@@ -35,6 +35,7 @@ class ReportingTests(unittest.TestCase):
             for required in ('model loading output', 'stderr output', 'visible warning', '2/2',
                              '1/2', '50.00', '0.500', '4.00', 'Completed GSM8K'):
                 self.assertIn(required, text)
+            self.assertIn('\u2588', text)
             self.assertNotIn('\r', text)
             self.assertNotIn('\x1b', text)
             self.assertIn('2/2', err.getvalue())
@@ -146,7 +147,7 @@ class RunnerPresentationRegressionTests(unittest.TestCase):
         stack.enter_context(patch('relay_cache.guards.exclusive_lock', side_effect=lambda path: nullcontext()))
         stack.enter_context(patch('relay_cache.guards.gpu_lease', side_effect=lambda gpu: nullcontext({'uuid': 'GPU-test'})))
         stack.enter_context(patch('relay_cache.guards.check_binding', return_value={'test': 'mock'}))
-        stack.enter_context(patch('relay_cache.generate.Session', FakeSession))
+        stack.enter_context(patch('relay_cache.llada.generate.Session', FakeSession))
         stack.enter_context(patch('dllm_eval.evaluation.evaluate', side_effect=grade))
         stack.enter_context(patch('dllm_eval.scoring_guard.installed', side_effect=lambda events: nullcontext()))
         stack.enter_context(patch('dllm_eval.run.parser', return_value=type('Parser', (), {'parse_args': lambda self: args})()))

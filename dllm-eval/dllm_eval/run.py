@@ -10,7 +10,9 @@ from .plan import COUNTS
 
 def parser():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--config',type=Path,default=ROOT/'dllm-eval/configs/reproduction.json')
+    p.add_argument('--model',choices=('llada','dream'),default='llada')
+    p.add_argument('--dream-backend',choices=('relay','native'),default='relay')
+    p.add_argument('--config',type=Path)
     p.add_argument('--data-root',type=Path,required=True)
     p.add_argument('--dataset',action='append',default=[],metavar='TASK=PATH')
     p.add_argument('--gpu',required=True,help='Idle physical index or UUID')
@@ -51,7 +53,13 @@ def prepare_run(output,manifest,resume=False):
 
 def run_evaluation(args,reporter):
     reporter.info('Validating fixed sources, configuration, environment and datasets')
-    config=json.loads(args.config.read_text());validate_settings(config['settings'])
+    dream=args.model=='dream'
+    args.config=args.config or ROOT/('dllm-eval/configs/dream.json' if dream else 'dllm-eval/configs/reproduction.json')
+    config=json.loads(args.config.read_text())
+    if dream:
+        from relay_cache.dream.generate import SETTINGS as settings,validate_settings as validate_model_settings
+    else:settings,validate_model_settings=SETTINGS,validate_settings
+    validate_model_settings(config['settings'])
     if len(set(args.tasks))!=len(args.tasks) or len(set(args.lengths))!=len(args.lengths):raise ValueError('Duplicate task or length')
     sources=verify_sources();env=verify_environment();samples,data=read_data(args,config)
     for value,name in ((args.hf_home,'HF_HOME'),(args.hf_hub_cache,'HF_HUB_CACHE')):
@@ -61,16 +69,21 @@ def run_evaluation(args,reporter):
     from .evaluation import evaluate
     from .scoring_guard import installed
     from .score_answers import policy_hash
-    manifest=dict(schema=1,sources=sources,environment=env,settings=SETTINGS,datasets=data,config_sha256=sha256(args.config),
+    manifest=dict(schema=1,sources=sources,environment=env,settings=settings,datasets=data,config_sha256=sha256(args.config),
         lengths=args.lengths,tasks=args.tasks,rank=args.rank,world_size=args.world_size,policy_sha256=policy_hash(),
-        model='GSAI-ML/LLaDA-8B-Instruct',revision='08b83a6feb34df1a6011b80c3c00c7563e963b07',
+        model=settings['model'] if dream else 'GSAI-ML/LLaDA-8B-Instruct',
+        revision=settings['revision'] if dream else '08b83a6feb34df1a6011b80c3c00c7563e963b07',
         input_whitelist='paper_prompt or prompt only; references are accessed after generation persistence')
+    if dream:manifest['backend']=args.dream_backend
     with exclusive_lock(args.output.parent/(args.output.name+'.lock')):
         prepare_run(args.output,manifest,args.resume)
         with gpu_lease(args.gpu) as gpu:
             binding=check_binding();write_json(args.output/'resource.json',dict(gpu=gpu,binding=binding))
             reporter.start_run(args,samples)
-            from relay_cache.generate import Session,assert_same_generation
+            if dream:
+                from relay_cache.dream.generate import Session,assert_same_generation
+            else:
+                from relay_cache.llada.generate import Session,assert_same_generation
             session=None;events=[];all_scalars=[]
             for length in args.lengths:
                 for task in args.tasks:
@@ -86,7 +99,7 @@ def run_evaluation(args,reporter):
                             result=row['result']
                         else:
                             if session is None:
-                                began=time.perf_counter();session=Session()
+                                began=time.perf_counter();session=Session(backend=args.dream_backend) if dream else Session()
                                 write_json(args.output/'setup.json',dict(model_load_seconds=time.perf_counter()-began,excluded_from_request=True))
                             began=time.perf_counter();prompt=session.prepare(generation_prompt(sample),task)
                             prepared=time.perf_counter()-began

@@ -4,7 +4,7 @@ from pathlib import Path
 MODEL_ID="GSAI-ML/LLaDA-8B-Instruct"
 REVISION="08b83a6feb34df1a6011b80c3c00c7563e963b07"
 MASK_ID=126336
-ROOT=Path(__file__).resolve().parent.parent
+ROOT=Path(__file__).resolve().parents[2]
 
 def snapshot():
     from huggingface_hub import snapshot_download
@@ -18,7 +18,7 @@ def snapshot():
 
 def load_external():
     # Preserve original module ABI while keeping descriptive public filenames.
-    source=ROOT/"relay_cache/model"
+    source=ROOT/"relay_cache/llada/model"
     parent=source.parent
     for name in ("model","flash_cache_triton","_relay_decoder"):
         module=sys.modules.get(name)

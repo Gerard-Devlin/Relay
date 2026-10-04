@@ -4,6 +4,8 @@ from pathlib import Path
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     q=p.add_mutually_exclusive_group(required=True);q.add_argument('--prompt');q.add_argument('--prompt-file',type=Path)
+    p.add_argument('--model',choices=('llada','dream'),default='llada')
+    p.add_argument('--dream-backend',choices=('relay','native'),default='relay')
     p.add_argument('--gpu',required=True,help='Idle physical GPU index or UUID')
     p.add_argument('--length',type=int,choices=(256,512),default=256)
     p.add_argument('--task',choices=('gsm8k','math','humaneval','mbpp'),default='gsm8k')
@@ -20,8 +22,11 @@ def main():
     sources=verify_sources();env=verify_environment()
     with gpu_lease(args.gpu) as gpu:
         binding=check_binding()
-        from .generate import Session,assert_same_generation
-        session=Session();text=args.prompt if args.prompt is not None else args.prompt_file.read_text(encoding='utf-8')
+        if args.model=='dream':
+            from .dream.generate import Session,assert_same_generation
+        else:
+            from .llada.generate import Session,assert_same_generation
+        session=Session(backend=args.dream_backend) if args.model=='dream' else Session();text=args.prompt if args.prompt is not None else args.prompt_file.read_text(encoding='utf-8')
         prompt=session.prepare(text,args.task,args.preformatted)
         warm=session.generate(prompt,args.length,{},args.task)
         result=session.generate(prompt,args.length,{},args.task);assert_same_generation(warm,result)

@@ -15,5 +15,5 @@ dependencies = ["torch", "transformers", "huggingface-hub", "numpy", "tqdm", "tr
 data = ["datasets", "lm_eval==0.4.8", "pyyaml"]
 
 [tool.setuptools]
-packages = ["relay_cache", "relay_cache.model", "dllm_eval", "dllm_eval.vendor"]
+packages = ["relay_cache", "relay_cache.llada", "relay_cache.llada.model", "relay_cache.dream", "dllm_eval", "dllm_eval.vendor"]
 package-dir = {relay_cache = "relay_cache", dllm_eval = "dllm-eval/dllm_eval"}
