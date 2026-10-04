@@ -1,0 +1,49 @@
+# Third-party notices
+
+RelayCache builds on execution components from [Flash-dLLM](https://github.com/VILA-Lab/Flash-dLLM),
+[LLaDA](https://github.com/ML-GSAI/LLaDA),
+[DREAM](https://github.com/DreamLM/Dream), [Fast-dLLM](https://github.com/NVlabs/Fast-dLLM),
+[lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness),
+[Hugging Face Transformers](https://github.com/huggingface/transformers), and
+[Math-Verify](https://github.com/huggingface/Math-Verify). We thank their authors for the open-source implementations.
+
+The pinned model, generator and Triton execution files in `relay_cache/llada/model/` retain the original
+Flash-dLLM implementation (Copyright 2026 VILA Lab, Apache-2.0). The HumanEval sanitizer retains
+the Fast-dLLM implementation and its original
+Copyright 2025 NVIDIA CORPORATION & AFFILIATES header, under Apache-2.0, modified upstream from
+HKUNLP/Dream. These upstream components are distinct from Relay's stripe-refresh cache policy.
+The repository [LICENSE](LICENSE) contains the complete Apache-2.0 terms.
+
+Minerva-MATH and MBPP evaluation utilities come from lm-eval 0.4.8 under the MIT license reproduced below.
+Only the original whitelisted definitions are loaded during evaluation. DREAM model and sampler code are loaded from the pinned official checkpoint cache
+(Copyright the Dream team, HKUNLP Group and Hugging Face, Apache-2.0); they are not redistributed.
+Math-Verify is an external dependency; model weights and benchmark datasets are not redistributed and retain their own licenses.
+
+<details>
+<summary>MIT license for bundled lm-evaluation-harness utilities</summary>
+
+```text
+MIT License
+
+Copyright (c) 2020 EleutherAI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+</details>
