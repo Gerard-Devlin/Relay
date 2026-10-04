@@ -12,6 +12,5 @@
     "antlr4-python3-runtime": "4.11.0",
     "datasets": "5.0.0",
     "lm_eval": "0.4.8"
-  },
-  "scope": "Read from the unchanged original fastdllm311 evaluation environment, 2026-10-04"
+  }
 }

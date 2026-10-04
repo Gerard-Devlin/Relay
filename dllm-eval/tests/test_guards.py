@@ -16,6 +16,25 @@ class GuardTests(unittest.TestCase):
             m=dict(files={'relay_cache/a.py':sha256(p)},artifacts={})
             verify_sources(root,m);p.write_text('a=2')
             with self.assertRaisesRegex(RuntimeError,'hash mismatch'):verify_sources(root,m)
+    def test_live_source_changes_rejected_without_published_hash_catalog(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);p=root/'relay_cache/a.py';p.parent.mkdir();p.write_text('a=1')
+            baseline=verify_sources(root)
+            baseline['files'].clear()
+            self.assertIn('relay_cache/a.py',verify_sources(root)['files'])
+            p.write_text('a=2')
+            with self.assertRaisesRegex(RuntimeError,'hash mismatch'):verify_sources(root)
+    def test_live_config_file_changes_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);p=root/'dllm-eval/configs/profile.json';p.parent.mkdir(parents=True);p.write_text('{}')
+            verify_sources(root)
+            p.write_text('{"changed":true}')
+            with self.assertRaisesRegex(RuntimeError,'artifact mismatch'):verify_sources(root)
+    def test_live_source_file_set_changes_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);(root/'relay_cache').mkdir();verify_sources(root)
+            (root/'relay_cache/added.py').write_text('')
+            with self.assertRaisesRegex(RuntimeError,'file set'):verify_sources(root)
     def test_source_file_set_mismatch(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);(root/'relay_cache').mkdir();(root/'relay_cache/extra.py').write_text('')

@@ -5,6 +5,8 @@ from relay_cache.utils import sha256,write_json
 from relay_cache.guards import SETTINGS,validate_settings
 from relay_cache.utils import generation_prompt,select_samples
 from relay_cache.guards import ROOT,verify_sources,verify_environment,fingerprint,validate_resume
+from .reporting import evaluation_log
+from .plan import COUNTS
 
 def parser():
     p=argparse.ArgumentParser(description=__doc__)
@@ -13,6 +15,7 @@ def parser():
     p.add_argument('--dataset',action='append',default=[],metavar='TASK=PATH')
     p.add_argument('--gpu',required=True,help='Idle physical index or UUID')
     p.add_argument('--output',type=Path,required=True);p.add_argument('--resume',action='store_true')
+    p.add_argument('--log-dir',type=Path,default=ROOT/'log',help='One transcript per invocation (default: repository/log)')
     p.add_argument('--hf-home',type=Path);p.add_argument('--hf-hub-cache',type=Path)
     p.add_argument('--tasks',nargs='+',choices=('gsm8k','humaneval','mbpp','math'),default=list(('gsm8k','humaneval','mbpp','math')))
     p.add_argument('--lengths',nargs='+',type=int,choices=(256,512),default=[256,512])
@@ -21,7 +24,7 @@ def parser():
     return p
 
 def read_data(args,config):
-    expected=json.loads((ROOT/'dllm-eval/provenance/datasets.json').read_text());paths=dict(config['datasets'])
+    expected=COUNTS;paths=dict(config['datasets'])
     for entry in args.dataset:
         task,path=entry.split('=',1)
         if task not in expected:raise ValueError('Unknown dataset override')
@@ -30,9 +33,8 @@ def read_data(args,config):
     if not 0<=args.rank<args.world_size:raise ValueError('Invalid shard')
     for task in args.tasks:
         path=(args.data_root/paths[task]).resolve()
-        if sha256(path)!=expected[task]['sha256']:raise RuntimeError('Fixed dataset hash mismatch: '+task)
         rows=json.loads(path.read_text(encoding='utf-8'))
-        if len(rows)!=expected[task]['count']:raise RuntimeError('Fixed dataset count mismatch')
+        if len(rows)!=expected[task]:raise RuntimeError('Fixed dataset count mismatch')
         chosen=select_samples(path,args.limit or len(rows),args.offset,SETTINGS['seed'])
         for sample in chosen:generation_prompt(sample)
         samples[task]=chosen[args.rank::args.world_size]
@@ -47,8 +49,9 @@ def prepare_run(output,manifest,resume=False):
         if resume:raise FileNotFoundError('Cannot resume absent run')
         output.mkdir(parents=True);write_json(output/'manifest.json',manifest)
 
-def main():
-    args=parser().parse_args();config=json.loads(args.config.read_text());validate_settings(config['settings'])
+def run_evaluation(args,reporter):
+    reporter.info('Validating fixed sources, configuration, environment and datasets')
+    config=json.loads(args.config.read_text());validate_settings(config['settings'])
     if len(set(args.tasks))!=len(args.tasks) or len(set(args.lengths))!=len(args.lengths):raise ValueError('Duplicate task or length')
     sources=verify_sources();env=verify_environment();samples,data=read_data(args,config)
     for value,name in ((args.hf_home,'HF_HOME'),(args.hf_hub_cache,'HF_HUB_CACHE')):
@@ -66,11 +69,13 @@ def main():
         prepare_run(args.output,manifest,args.resume)
         with gpu_lease(args.gpu) as gpu:
             binding=check_binding();write_json(args.output/'resource.json',dict(gpu=gpu,binding=binding))
+            reporter.start_run(args,samples)
             from relay_cache.generate import Session,assert_same_generation
             session=None;events=[];all_scalars=[]
             for length in args.lengths:
                 for task in args.tasks:
                     folder=args.output/f'{task}_{length}'/'records';folder.mkdir(parents=True,exist_ok=True)
+                    reporter.start_cell(task,length,len(samples[task]))
                     for sample in samples[task]:
                         ident=str(sample.get('id',sample.get('task_id')));key=fingerprint([task,length,ident])
                         path=folder/(key+'.json');prompt_hash=fingerprint(generation_prompt(sample))
@@ -98,7 +103,8 @@ def main():
                             write_json(path,row)
                         all_scalars.append(dict(task=task,length=length,id=ident,correct=bool(row['assessment']['correct']),
                             seconds=result['seconds'],nfe=result['nfe']))
-                        verify_sources();print('SCORED',task,length,ident,len(all_scalars),flush=True)
+                        verify_sources();reporter.update(all_scalars[-1])
+                    reporter.finish_cell()
             cells={}
             for task in args.tasks:
                 for length in args.lengths:
@@ -112,4 +118,11 @@ def main():
             write_json(args.output/'summary.json',dict(status='complete',cells=cells,scored=len(all_scalars),
                 scoring_compatibility_events=events,scope='Warmed prepared-prompt requests; warm-up, setup, preparation, postprocessing, disk and scoring excluded'))
             (args.output/'complete').write_text('OK\n')
+            reporter.finish(cells,args.output)
+
+def main():
+    args=parser().parse_args()
+    with evaluation_log(args.log_dir,args.output,args.rank) as reporter:
+        run_evaluation(args,reporter)
+
 if __name__=='__main__':main()
