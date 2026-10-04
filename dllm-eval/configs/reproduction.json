@@ -1,0 +1,28 @@
+{
+  "settings": {
+    "method": "relay_cache",
+    "stripe_width": 8,
+    "history_budget": 128,
+    "lengths": [
+      256,
+      512
+    ],
+    "block": 32,
+    "threshold": 0.9,
+    "gamma": 0.8,
+    "track": 4,
+    "mask": 4,
+    "verify": false,
+    "seed": 51713,
+    "precision": "BF16",
+    "warmup": "Every prompt has one excluded warm request immediately before timed replay",
+    "baseline_regenerated": false,
+    "algorithm_retuned": false
+  },
+  "datasets": {
+    "gsm8k": "gsm8k_paper_5shot.json",
+    "humaneval": "humaneval_test.json",
+    "mbpp": "mbpp_paper_3shot.json",
+    "math": "math_paper_4shot_v2.json"
+  }
+}

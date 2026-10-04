@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "relay-cache"
+version = "0.1.0"
+description = "Stripe-refresh caching for masked diffusion language models"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+dependencies = ["torch", "transformers", "huggingface-hub", "numpy", "triton; sys_platform == 'linux'", "sympy==1.14.0", "math-verify==0.1.0", "antlr4-python3-runtime==4.11.0"]
+
+[project.optional-dependencies]
+data = ["datasets", "lm_eval==0.4.8", "pyyaml"]
+
+[tool.setuptools]
+packages = ["relay_cache", "relay_cache.model", "dllm_eval", "dllm_eval.vendor"]
+package-dir = {relay_cache = "relay_cache", dllm_eval = "dllm-eval/dllm_eval"}

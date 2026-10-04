@@ -1,0 +1,17 @@
+{
+  "status": "captured",
+  "python": "3.11.15",
+  "packages": {
+    "torch": "2.7.1+cu128",
+    "triton": "3.3.1",
+    "transformers": "4.57.3",
+    "huggingface-hub": "0.36.2",
+    "numpy": "2.4.6",
+    "sympy": "1.14.0",
+    "math-verify": "0.1.0",
+    "antlr4-python3-runtime": "4.11.0",
+    "datasets": "5.0.0",
+    "lm_eval": "0.4.8"
+  },
+  "scope": "Read from the unchanged original fastdllm311 evaluation environment, 2026-10-04"
+}

@@ -1,0 +1,15 @@
+{
+  "flash_dllm": {
+    "url": "https://github.com/VILA-Lab/Flash-dLLM",
+    "commit": "7437a550fd3d1a0752edcbf58bd015ad69083068",
+    "license": "Apache-2.0",
+    "files": {
+      "relay_cache/model/kernels.py": "58c948c89bbbf90669e2b8eeac79d8fda0d863a4e5ffd1f53f903cab40af8994",
+      "relay_cache/model/decoder.py": "96d3e15b2600eb73e7084d7cd3f23a1c74c44451a1ff7b5db96942d671e0e2d8",
+      "relay_cache/model/configuration_llada.py": "57a4a1f38ca82732b5aaebc9df55b9cf7f3b9e9cea3c48cd7ab16a4083824da1",
+      "relay_cache/model/modeling_llada.py": "e74b0987aef117127415ff18d19aa1a55f0b13185018609f92eab25cd5d2cd88",
+      "relay_cache/model/__init__.py": "30b27d159ca22117054c45a04d2e790b646592c3b9f17a9cd11a03fec191b26e",
+      "third_party/flash_dllm/LICENSE": "73a0d0f08e5bb8deb9c39aacf34b9172f013f716ca00bfebb1386414ed9f42b5"
+    }
+  }
+}

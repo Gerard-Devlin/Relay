@@ -1,0 +1,72 @@
+{
+  "algorithm_definitions_identical_except_imports_and_identifier_names": true,
+  "checked": [
+    "relay_cache/reference.py:Plan",
+    "relay_cache/reference.py:block_table",
+    "relay_cache/reference.py:validate_identity",
+    "relay_cache/reference.py:theoretical_row_layers",
+    "relay_cache/runtime.py:RelayFrontier",
+    "relay_cache/runtime.py:Engine",
+    "relay_cache/runtime.py:Runtime",
+    "relay_support/frontier.py:candidate_budget",
+    "relay_support/frontier.py:Frontier",
+    "relay_support/frontier.py:mechanism_generator",
+    "relay_support/frontier.py:Runtime",
+    "relay_support/flash_readout.py:Readout",
+    "relay_support/flash_readout.py:ModelReadout",
+    "relay_support/flash_readout.py:generator",
+    "relay_support/flash_readout.py:suppress_official_prints",
+    "relay_support/flash_statistics.py:reference",
+    "relay_support/flash_statistics.py:kernels",
+    "relay_support/flash_statistics.py:statistics",
+    "relay_support/padded_head.py:pad_rows",
+    "relay_support/padded_head.py:project",
+    "relay_support/padded_head.py:selected_forward",
+    "relay_support/flash_adapter.py:adapted",
+    "relay_support/observers.py:OutputCapture",
+    "relay_support/observers.py:forbid_sdpa"
+  ],
+  "identifier_mapping": {
+    "focus_head_rows": "readout_rows",
+    "_focus_action": "_relay_action",
+    "_focus_statistics": "_relay_statistics",
+    "focus-humaneval-": "relay-humaneval-",
+    "focus-mbpp-": "relay-mbpp-"
+  },
+  "frozen_file_hashes": {
+    "relay_cache/model/kernels.py": "58c948c89bbbf90669e2b8eeac79d8fda0d863a4e5ffd1f53f903cab40af8994",
+    "relay_cache/model/decoder.py": "96d3e15b2600eb73e7084d7cd3f23a1c74c44451a1ff7b5db96942d671e0e2d8",
+    "relay_cache/model/configuration_llada.py": "57a4a1f38ca82732b5aaebc9df55b9cf7f3b9e9cea3c48cd7ab16a4083824da1",
+    "relay_cache/model/modeling_llada.py": "e74b0987aef117127415ff18d19aa1a55f0b13185018609f92eab25cd5d2cd88",
+    "relay_cache/model/__init__.py": "30b27d159ca22117054c45a04d2e790b646592c3b9f17a9cd11a03fec191b26e",
+    "third_party/flash_dllm/LICENSE": "73a0d0f08e5bb8deb9c39aacf34b9172f013f716ca00bfebb1386414ed9f42b5"
+  },
+  "mathematical_scorer_byte_identical": true,
+  "final_cleanup": {
+    "relay_cache/cache.py": {
+      "before_sha256": "d19ec82abf0c488d3c2f438c9d06dde213ca45c5cbfccd2ba37e642592a030ed",
+      "changes": "Internal identifiers and temporary directory names only",
+      "after_sha256": "c411d149114ecdcbd4e35119d900937db3cffe649785b9ce6ce9f16bff8aacd5"
+    },
+    "relay_cache/execution.py": {
+      "before_sha256": "9b41feeeed37156b429b19ad0bd6f58bace1d2c44610aaa7d751fdcd6ebd5f16",
+      "changes": "Internal identifiers and temporary directory names only",
+      "after_sha256": "55258849fdac5354f3cae5cae8384b25228c2b38bf397d5ab1b184fe24c1ab12"
+    },
+    "dllm-eval/dllm_eval/score_humaneval.py": {
+      "before_sha256": "1e06cc840003fb28c200de4e97c7656fbb371323a77a50bfa2a064c7d56c942b",
+      "changes": "Internal identifiers and temporary directory names only",
+      "after_sha256": "196b296517739c9799143175a18e5d0eabdb7f4f19a4dfafdc8a4ab635670d34"
+    },
+    "dllm-eval/dllm_eval/score_mbpp.py": {
+      "before_sha256": "5882c85c06c90c17572fa136b95e68c8ac07bc7ab9830952a47d26c81474114c",
+      "changes": "Internal identifiers and temporary directory names only",
+      "after_sha256": "60af0e62492f5f7ed8151f98cec4a0cb6eb93a1d1e30c36b3d349b6d25bc63a9"
+    },
+    "relay_cache/generate.py": {
+      "before_sha256": "60b15e79cf2defa645e7a4356c7ba784ac789ef8f6a4835f6ab92f3d83aa7aa4",
+      "changes": "Remove one identical duplicate EOS constant assignment",
+      "after_sha256": "ab79f944bf70da7bb0c695c47cfa79d4ae48630ebc6ca25c9c817b2ab73fd5c6"
+    }
+  }
+}
