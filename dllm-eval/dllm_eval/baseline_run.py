@@ -18,7 +18,7 @@ from .reporting import evaluation_log
 def parser():
     p = base_parser()
     p.description = __doc__
-    p.add_argument('--method', choices=('es_dllm', 'sparsed'), required=True)
+    p.add_argument('--method', choices=('dllm_cache', 'd2cache'), required=True)
     p.add_argument('--baseline-source', type=Path, required=True)
     return p
 

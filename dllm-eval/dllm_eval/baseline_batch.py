@@ -105,13 +105,13 @@ def campaign(args):
         def emit(message):
             text=time.strftime('%Y-%m-%d %H:%M:%S UTC',time.gmtime())+' | '+message
             logfile.write(text+'\n');tqdm.write(text,file=sys.stderr)
-        emit('ES-dLLM / SparseD | same pinned LLaDA-8B-Instruct / BF16 / prompts / final-expression-v3 + official code execution')
+        emit('dLLM-cache / d2Cache | same pinned LLaDA-8B-Instruct / BF16 / prompts / final-expression-v3 + official code execution')
         emit('Official per-method schedules; warmed prepared-prompt request time; no LLaDA/v1/Relay reruns.')
         try:
             for phase in ('smoke','full'):
                 world=2 if phase=='smoke' else len(args.gpus)
                 total=32 if phase=='smoke' else 2*2*sum(COUNTS.values())
-                jobs=[dict(method=method,rank=rank) for method in SOURCES for rank in range(world)]
+                jobs=[dict(method=method,rank=rank) for rank in range(world) for method in SOURCES]
                 running={};completed=[];pending=queue.Queue();rows={};rendered=set();closed=set();started=time.monotonic();last_status=0;last_wait=0
                 def reader(key,stream):
                     try:
