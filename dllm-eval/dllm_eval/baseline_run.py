@@ -39,17 +39,24 @@ class BaselineReporter:
 def parser():
     p = base_parser()
     p.description = __doc__
-    p.add_argument('--method', choices=('elastic_cache', 'd2cache'), required=True)
+    p.add_argument('--method', choices=('elastic_cache', 'd2cache', 'fast_dllm_v1'), required=True)
     p.add_argument('--baseline-source', type=Path, required=True)
     return p
 
 
 def run_evaluation(args, reporter):
-    if args.model != 'llada':
-        raise ValueError('This baseline comparison is LLaDA only')
-    args.config = args.config or ROOT / 'dllm-eval/configs/reproduction.json'
+    dream = args.model == 'dream'
+    if args.method == 'fast_dllm_v1' and not dream:
+        raise ValueError('This Fast-dLLM adapter is DREAM only; historical LLaDA v1 remains separate')
+    args.config = args.config or ROOT / ('dllm-eval/configs/dream.json' if dream else 'dllm-eval/configs/reproduction.json')
     config = json.loads(args.config.read_text())
-    validate_settings(config['settings'])
+    if dream:
+        from relay_cache.dream.generate import validate_settings as validate_dream
+        from .dream_baselines import settings as model_settings, Session as ModelSession
+        validate_dream(config['settings'])
+    else:
+        validate_settings(config['settings'])
+        model_settings, ModelSession = settings, Session
     if len(set(args.tasks)) != len(args.tasks) or len(set(args.lengths)) != len(args.lengths):
         raise ValueError('Duplicate task or length')
     sources = verify_sources()
@@ -60,7 +67,7 @@ def run_evaluation(args, reporter):
         if value:
             os.environ[name] = str(value)
     os.environ['HF_HUB_OFFLINE'] = os.environ['TRANSFORMERS_OFFLINE'] = '1'
-    profile = settings(args.method)
+    profile = model_settings(args.method)
     manifest = dict(schema=1, sources=sources, upstream=upstream, environment=env, settings=profile,
                     datasets=data, config_sha256=sha256(args.config), lengths=args.lengths, tasks=args.tasks,
                     rank=args.rank, world_size=args.world_size, policy_sha256=policy_hash(),
@@ -91,7 +98,7 @@ def run_evaluation(args, reporter):
                                 raise RuntimeError('Saved batch identity or manifest changed')
                         else:
                             if session is None:
-                                began=time.perf_counter();session=Session(args.method,args.baseline_source)
+                                began=time.perf_counter();session=ModelSession(args.method,args.baseline_source)
                                 write_json(args.output/'setup.json',dict(model_load_seconds=time.perf_counter()-began))
                             began=time.perf_counter();prompt=session.prepare_batch(prompts,task);prepared=time.perf_counter()-began
                             warm=session.generate_batch(prompt,length,group,task,batch_id)

@@ -17,6 +17,7 @@ SETTINGS = dict(method="relay_dream", model=MODEL_ID, revision=REVISION,
     precision="BF16", alg="entropy", alg_temp=0.0, temperature=0.0,
     top_p=None, top_k=None, eps=0.001, steps={"256":256, "512":512},
     verify=False, schedule="Official DREAM full-canvas diffusion sampler")
+SETTINGS['prompt_policy'] = 'official BOS + prepared paper_prompt; no extra chat template'
 
 
 def validate_settings(value):
@@ -202,8 +203,8 @@ class Session:
 
     def prepare(self, text, task, preformatted=True):
         import torch
-        from ..utils import prompt_ids
-        ids = prompt_ids(self.tokenizer, text, task, preformatted=preformatted)
+        from .prompts import prompt_ids
+        ids = prompt_ids(self.tokenizer, text)
         return torch.tensor([ids], device=self.model.device, dtype=torch.long)
 
     def generate(self, prompt, length, sample, task, audit=False):
@@ -235,9 +236,9 @@ class Session:
                         eps=SETTINGS["eps"], mask_token_id=self.model.config.mask_token_id,
                         generation_tokens_hook_func=observe)
                 synchronize()
+                seconds = time.perf_counter() - started
                 ids = sequence[0, prompt.shape[1]:].tolist()
                 raw = self.tokenizer.decode(ids, skip_special_tokens=False)
-                seconds = time.perf_counter() - started
         finally:
             handle.remove()
         text, processed = postprocess_output(self.tokenizer, raw, sample)

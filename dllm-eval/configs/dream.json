@@ -22,7 +22,8 @@
       "512": 512
     },
     "verify": false,
-    "schedule": "Official DREAM full-canvas diffusion sampler"
+    "schedule": "Official DREAM full-canvas diffusion sampler",
+    "prompt_policy": "official BOS + prepared paper_prompt; no extra chat template"
   },
   "datasets": {
     "gsm8k": "gsm8k_paper_5shot.json",

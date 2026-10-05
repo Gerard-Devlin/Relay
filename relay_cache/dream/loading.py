@@ -20,21 +20,51 @@ def validate_checkpoint(path):
     if not weights:
         raise RuntimeError("Empty DREAM weight index")
     for name in weights:
+        if Path(name).name != name or not name.endswith('.safetensors'):
+            raise RuntimeError("Invalid DREAM shard name")
         target = (path / name).resolve()
-        if not target.is_relative_to(path) or not target.is_file() or target.stat().st_size == 0:
+        # HF snapshots normally link to this model's sibling blobs directory.
+        cache_blob = (path.parent.name == 'snapshots'
+                      and path.parents[1].name == 'models--Dream-org--Dream-v0-Instruct-7B'
+                      and target.parent == path.parents[1] / 'blobs')
+        if not (target.is_relative_to(path) or cache_blob) or not target.is_file() or target.stat().st_size == 0:
             raise RuntimeError("Incomplete or invalid DREAM weight shard")
     return path
 
 
+def snapshot():
+    from huggingface_hub import snapshot_download
+    return validate_checkpoint(snapshot_download(MODEL_ID, revision=REVISION, local_files_only=True))
+
+
+def load_checkpoint(cls, path, attn_implementation='sdpa'):
+    """Preserve official config initialization while obtaining HF loading diagnostics.
+
+    Official DREAM wrappers assume from_pretrained returns only a model; asking
+    them for output_loading_info makes that wrapper dereference a tuple.
+    """
+    import importlib
+    import torch
+    from transformers import PreTrainedModel
+    model, info = PreTrainedModel.from_pretrained.__func__(cls, path, local_files_only=True,
+        torch_dtype=torch.bfloat16, attn_implementation=attn_implementation, output_loading_info=True)
+    if any(info.get(k) for k in ('missing_keys', 'unexpected_keys', 'mismatched_keys', 'error_msgs')):
+        raise RuntimeError('DREAM checkpoint loading mismatch: ' + repr(info))
+    module = importlib.import_module(cls.__module__.rsplit('.', 1)[0] + '.generation_utils')
+    # This is the same assignment made by the upstream from_pretrained wrapper.
+    model.generation_config = module.DreamGenerationConfig.from_pretrained(path, local_files_only=True)
+    return model
+
+
 def load_model():
     import torch
-    from huggingface_hub import snapshot_download
-    from transformers import AutoModel, AutoTokenizer
-    path = validate_checkpoint(snapshot_download(MODEL_ID, revision=REVISION, local_files_only=True))
-    model, info = AutoModel.from_pretrained(path, local_files_only=True, trust_remote_code=True,
-        torch_dtype=torch.bfloat16, attn_implementation="sdpa", use_cache=False, output_loading_info=True)
-    if any(info[name] for name in ("missing_keys", "unexpected_keys", "mismatched_keys")):
-        raise RuntimeError("DREAM checkpoint loading mismatch: " + str(info))
+    from transformers import AutoConfig, AutoTokenizer
+    from transformers.dynamic_module_utils import get_class_from_dynamic_module
+    path = snapshot()
+    config = AutoConfig.from_pretrained(path, local_files_only=True, trust_remote_code=True)
+    cls = get_class_from_dynamic_module(config.auto_map['AutoModel'], str(path), local_files_only=True)
+    model = load_checkpoint(cls, path)
+    model.config.use_cache = False
     tokenizer = AutoTokenizer.from_pretrained(path, local_files_only=True, trust_remote_code=True)
     return model.to("cuda:0").eval(), tokenizer
 

@@ -1,6 +1,7 @@
 """Evaluation adapters for unmodified, pinned Elastic-Cache and d2Cache sources."""
 import importlib.util
 import inspect
+import json
 import os
 import subprocess
 import sys
@@ -16,6 +17,9 @@ from relay_cache.llada.generate import postprocess_output
 SOURCES = {
     'elastic_cache': ('https://github.com/VILA-Lab/Elastic-Cache.git', '1960d8fc6231205a1ae4ebba3898d475e339f7e1'),
     'd2cache': ('https://github.com/Kamichanw/d2Cache.git', '216b4557f4baf318a246763af805f414cbfb21a4'),
+}
+DREAM_SOURCES = {
+    'fast_dllm_v1': ('https://github.com/NVlabs/Fast-dLLM.git', 'a9b81e4caa240c8cad4f7dc1889ff4852a0fca5b'),
 }
 SOURCE_SUFFIXES = {'.py', '.json', '.yaml', '.yml'}
 
@@ -65,8 +69,22 @@ def files(source):
 
 def source_manifest(method, source):
     source = Path(source).resolve()
+    registry = {**SOURCES, **DREAM_SOURCES}
+    # GitHub's pinned archive is usable when the server cannot reach Git transport.
+    # Its receipt is generated at download time, outside the public package.
+    receipt = source / '.official_archive.json'
+    if method == 'fast_dllm_v1' and receipt.exists():
+        declared = json.loads(receipt.read_text())
+        url, revision = registry[method]
+        if declared['revision'] != revision or declared['url'] != url:
+            raise RuntimeError('Official archive revision mismatch')
+        current = files(source)
+        current.pop('.official_archive.json', None)
+        if current != declared['files']:
+            raise RuntimeError('Official archive files changed')
+        return dict(url=url, revision=revision, files=files(source))
     actual = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
-    url, revision = SOURCES[method]
+    url, revision = registry[method]
     if actual != revision:
         raise RuntimeError('Upstream revision mismatch')
     if subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain', '--untracked-files=no'], text=True).strip():
