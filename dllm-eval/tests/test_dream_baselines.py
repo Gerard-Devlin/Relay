@@ -51,6 +51,13 @@ class DreamBaselineTests(unittest.TestCase):
         self.assertFalse(args['dual_cache']);self.assertEqual(args['alg'],'confidence_threshold')
         self.assertNotIn('gamma',args)
 
+    def test_v1_kernel_variants_keep_official_sampler_arguments(self):
+        for method in ('fast_dllm_v1_flash','fast_dllm_v1_no_flash'):
+            args=self.invoke(method)
+            self.assertEqual(args['block_length'],32);self.assertEqual(args['threshold'],.90)
+            self.assertFalse(args['dual_cache']);self.assertEqual(args['alg'],'confidence_threshold')
+            self.assertNotIn('gamma',args)
+
     def test_elastic_invocation_preserves_stop_and_tracking(self):
         args=self.invoke('elastic_cache')
         self.assertEqual(args['window_length'],32);self.assertEqual(args['track_num'],1)

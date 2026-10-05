@@ -39,14 +39,15 @@ class BaselineReporter:
 def parser():
     p = base_parser()
     p.description = __doc__
-    p.add_argument('--method', choices=('elastic_cache', 'd2cache', 'fast_dllm_v1'), required=True)
+    p.add_argument('--method', choices=('elastic_cache', 'd2cache', 'fast_dllm_v1',
+                   'fast_dllm_v1_flash', 'fast_dllm_v1_no_flash'), required=True)
     p.add_argument('--baseline-source', type=Path, required=True)
     return p
 
 
 def run_evaluation(args, reporter):
     dream = args.model == 'dream'
-    if args.method == 'fast_dllm_v1' and not dream:
+    if args.method.startswith('fast_dllm_v1') and not dream:
         raise ValueError('This Fast-dLLM adapter is DREAM only; historical LLaDA v1 remains separate')
     args.config = args.config or ROOT / ('dllm-eval/configs/dream.json' if dream else 'dllm-eval/configs/reproduction.json')
     config = json.loads(args.config.read_text())

@@ -21,6 +21,8 @@ SOURCES = {
 DREAM_SOURCES = {
     'fast_dllm_v1': ('https://github.com/NVlabs/Fast-dLLM.git', 'a9b81e4caa240c8cad4f7dc1889ff4852a0fca5b'),
 }
+for _name in ('fast_dllm_v1_flash', 'fast_dllm_v1_no_flash'):
+    DREAM_SOURCES[_name] = DREAM_SOURCES['fast_dllm_v1']
 SOURCE_SUFFIXES = {'.py', '.json', '.yaml', '.yml'}
 
 
@@ -73,7 +75,7 @@ def source_manifest(method, source):
     # GitHub's pinned archive is usable when the server cannot reach Git transport.
     # Its receipt is generated at download time, outside the public package.
     receipt = source / '.official_archive.json'
-    if method == 'fast_dllm_v1' and receipt.exists():
+    if method in DREAM_SOURCES and receipt.exists():
         declared = json.loads(receipt.read_text())
         url, revision = registry[method]
         if declared['revision'] != revision or declared['url'] != url:

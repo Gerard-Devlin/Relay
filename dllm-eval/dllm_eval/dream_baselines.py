@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import types
+from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
 
@@ -16,7 +17,15 @@ from relay_cache.dream.prompts import prompt_ids
 from relay_cache.dream.generate import postprocess_output
 from .baseline import official_imports, source_manifest, verify_upstream
 
-METHODS = ('fast_dllm_v1', 'd2cache', 'elastic_cache')
+METHODS = ('fast_dllm_v1', 'fast_dllm_v1_flash', 'fast_dllm_v1_no_flash', 'd2cache', 'elastic_cache')
+
+
+def attention_context(method):
+    """Force the actual SDPA kernel; unsupported Flash execution raises, never falls back."""
+    if method not in ('fast_dllm_v1_flash', 'fast_dllm_v1_no_flash'):
+        return nullcontext()
+    from torch.nn.attention import sdpa_kernel, SDPBackend
+    return sdpa_kernel(SDPBackend.FLASH_ATTENTION if method == 'fast_dllm_v1_flash' else SDPBackend.MATH)
 
 
 def settings(method):
@@ -28,10 +37,14 @@ def settings(method):
              warmup='One excluded full request per prompt before timed replay',
              parallel_decoding=True, temperature=0., top_p=None, top_k=None,
              profile='Pinned official DREAM sampler/cache; common Instruct checkpoint and prepared prompts')
-    if method == 'fast_dllm_v1':
+    if method.startswith('fast_dllm_v1'):
         p.update(block_length=32, alg='confidence_threshold', alg_temp=0.,
                  use_cache=True, dual_cache=False, stop_until_eos=False,
                  backend='Official Fast-dLLM DREAM PrefixCache + parallel; SDPA')
+        p['attention_policy'] = {'fast_dllm_v1':'auto SDPA',
+            'fast_dllm_v1_flash':'SDPA FLASH_ATTENTION only',
+            'fast_dllm_v1_no_flash':'SDPA MATH only'}[method]
+        p['backend'] += '; ' + p['attention_policy']
     elif method == 'elastic_cache':
         p.update(window_length=32, alg='confidence_threshold', alg_temp=0., gamma=.90,
                  track_num=1, block_caching=True, tokens_per_iter=1, stop_until_eos=True,
@@ -57,7 +70,8 @@ def official_model(method, source):
             from src.cache import d2Cache
             from src.generation import generate
         return DreamModel, generate, partial(d2Cache, rollout_p=.1,current_k=32,sigma=10.,inflate_w=4)
-    folder=source/('v1/dream/model' if method=='fast_dllm_v1' else 'dream/model')
+    is_v1=method.startswith('fast_dllm_v1')
+    folder=source/('v1/dream/model' if is_v1 else 'dream/model')
     namespace='_relay_official_'+method+'_dream'
     if namespace in sys.modules:
         raise RuntimeError('Run each official DREAM method in a fresh process')
@@ -66,7 +80,7 @@ def official_model(method, source):
     try:
         spec.loader.exec_module(pkg)
         model=importlib.import_module(namespace+'.modeling_dream').DreamModel
-        sampler=importlib.import_module(namespace+('.generation_utils_block' if method=='fast_dllm_v1' else '.generation_utils_elastic')).DreamGenerationMixin
+        sampler=importlib.import_module(namespace+('.generation_utils_block' if is_v1 else '.generation_utils_elastic')).DreamGenerationMixin
     except BaseException:
         for key in list(sys.modules):
             if key==namespace or key.startswith(namespace+'.'):sys.modules.pop(key)
@@ -87,7 +101,7 @@ def generate_official(session, prompt, length):
     kwargs=dict(attention_mask=prompt['attention_mask'],max_new_tokens=length,
         output_history=False,return_dict_in_generate=True,steps=length//32,
         temperature=0.,top_p=None,top_k=None,alg='confidence_threshold',alg_temp=0.,threshold=.90)
-    if session.method=='fast_dllm_v1':kwargs.update(block_length=32,dual_cache=False)
+    if session.method.startswith('fast_dllm_v1'):kwargs.update(block_length=32,dual_cache=False)
     else:kwargs.update(gamma=.90,window_length=32,track_num=1,block_caching=True,tokens_per_iter=1,
                         eos_id=session.tokenizer.eos_token_id,bos_id=session.tokenizer.bos_token_id)
     result=session.model.diffusion_generate(prompt['input_ids'],**kwargs)
@@ -105,6 +119,9 @@ class Session:
         path=snapshot()
         self.model=load_checkpoint(cls,path,'eager' if method=='d2cache' else 'sdpa')
         self.model=self.model.to('cuda:0').eval()
+        if method.startswith('fast_dllm_v1') and any(type(layer.self_attn).__name__ != 'DreamSdpaAttention'
+                                                   for layer in self.model.model.layers):
+            raise RuntimeError('Official DREAM v1 attention path changed; backend labels cannot be trusted')
         self.tokenizer=AutoTokenizer.from_pretrained(path,local_files_only=True,trust_remote_code=True)
         if method!='d2cache':
             # Same two method bindings as each upstream eval.py.
@@ -127,7 +144,7 @@ class Session:
             if calls[0]>length+length//32:raise RuntimeError('DREAM generation exceeded progress bound')
         handle=self.model.register_forward_pre_hook(count)
         try:
-            with torch.no_grad(),torch.random.fork_rng(devices=[self.model.device.index or 0]):
+            with torch.no_grad(),torch.random.fork_rng(devices=[self.model.device.index or 0]),attention_context(self.method):
                 torch.manual_seed(51713);torch.cuda.synchronize();start=time.perf_counter()
                 output=generate_official(self,prompt,length)
                 torch.cuda.synchronize();elapsed=time.perf_counter()-start

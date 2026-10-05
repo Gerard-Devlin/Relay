@@ -62,6 +62,26 @@ model loading, tokenization, warm-up, output processing, scoring and file I/O.
 CPU integration checks are not evidence of checkpoint accuracy or GPU speed;
 publish measurements only after the intended hardware run completes.
 
+## Sequential full campaign
+
+`python -m dllm_eval.dream_campaign --config /path/to/queue.json` starts a
+dependency-aware controller. Its fixed method order is Relay, d2Cache,
+Elastic-Cache, and v1 without FlashAttention. The v1 profile keeps the official
+sampler and forces PyTorch SDPA's MATH backend, with no silent kernel fallback.
+It receives a small checkpoint smoke after the LLaDA completion barrier and
+before its full run. The campaign does not run v1 + FlashAttention.
+
+The queue config specifies `output`, `llada_output`, `llada_recovery`,
+`llada_v1_output`, `data_root`, `datasets` overrides, `hf_home`, `hf_hub_cache`,
+external `sources`, per-method `logs`, physical `gpu_uuids`, `gpus` (0 through 7),
+`max_total_gpus` (6), and the four `methods` in the stated order. Create the
+output's `source_guard.json` from `relay_cache.guards.verify_sources` before
+launching against a frozen source copy. Predecessor summaries must prove all
+eight cells and successful rank exits. The controller uses available cards
+without waiting for all six to become idle; methods remain sequential. Each
+method has one progress log shared by its ranks. `--resume` retains saved
+generations and assessments and requires unchanged source/config manifests.
+
 The initial checkpoint smoke covered all four tasks at 256 and 512 tokens for
 each method: 32 requests, each with an excluded warm replay. Tokens, text and NFE
 matched the replay. Relay's full-row operator control also matched native DREAM
