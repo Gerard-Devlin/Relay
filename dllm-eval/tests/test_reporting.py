@@ -125,7 +125,7 @@ class RunnerPresentationRegressionTests(unittest.TestCase):
             def generate(self, prompt, length, sample, task):
                 self.invocations += 1
                 calls.append(('generate', task, length, sample['id']))
-                return dict(seconds=100. if self.invocations % 2 else .5, nfe=3, iterations=3,
+                return dict(seconds=100. if self.invocations <= 2 else .5, nfe=3, iterations=3,
                             token_ids=[7, 126081], raw_decoder_text='answer', text='answer',
                             ordinary_calls=3, private_calls=0, ordinary_accepted=2,
                             actual_ordinary_row_layers=96, optional_row_layers_skipped=0,
@@ -156,22 +156,29 @@ class RunnerPresentationRegressionTests(unittest.TestCase):
         stack.enter_context(patch.dict('os.environ', {}))
         return args
 
-    def test_fresh_and_resume_keep_warm_replay_order_grading_and_saved_bytes(self):
+    def test_two_startup_requests_then_single_generation_and_exact_resume(self):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             output, logs = Path(directory) / 'run', Path(directory) / 'log'
             calls = []
             args = self.mocked_environment(stack, output, logs, calls, tasks=['gsm8k','humaneval','mbpp','math'])
             run.main()
             expected = [('load',)]
+            for ident in ('a','b'):
+                expected += [('prepare','legal-'+ident,'gsm8k'),('generate','gsm8k',256,ident)]
             for length in (256, 512):
                 for task in ('gsm8k','humaneval','mbpp','math'):
                     for ident in ('a', 'b'):
                         expected += [('prepare', 'legal-' + ident, task), ('generate', task, length, ident),
-                                     ('generate', task, length, ident), ('grade', task, length, ident)]
+                                     ('grade', task, length, ident)]
             self.assertEqual(calls, expected)
             summary = json.loads((output / 'summary.json').read_text(encoding='utf-8'))
             self.assertEqual(summary['scored'], 16)
             self.assertEqual(len(summary['cells']), 8)
+            self.assertEqual(summary['measurement']['requests_per_worker'],2)
+            self.assertFalse(summary['measurement']['per_prompt_replay'])
+            warm=json.loads(next(output.glob('warmup_*.json')).read_text())
+            self.assertEqual([r['id'] for r in warm['requests']],['a','b'])
+            self.assertEqual(sum(c[0]=='generate' for c in calls),18)
             for cell in summary['cells'].values():
                 self.assertEqual(cell, dict(samples=2, correct=1, accuracy_percent=50., mean_seconds=.5, mean_nfe=3.))
             before = {p.relative_to(output): p.read_bytes() for p in output.rglob('*.json')}

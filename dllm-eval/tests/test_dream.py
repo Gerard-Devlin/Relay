@@ -149,7 +149,7 @@ class DreamTests(unittest.TestCase):
 
 
 class DreamRunnerTests(unittest.TestCase):
-    def test_dream_routing_warm_replay_and_native_resume_separation(self):
+    def test_dream_routing_startup_warmup_and_native_resume_separation(self):
         from test_reporting import RunnerPresentationRegressionTests
         from dllm_eval import run
         from relay_cache.llada import generate as llada

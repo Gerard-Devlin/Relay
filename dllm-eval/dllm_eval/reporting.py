@@ -86,7 +86,7 @@ class Reporter:
         total = sum(len(rows) for rows in samples.values()) * len(args.lengths)
         self.info(f"RelayCache | GPU {args.gpu} | shard {args.rank + 1}/{args.world_size} | "
                   f"{len(args.tasks) * len(args.lengths)} cells, {total} requests | resume={args.resume}")
-        self.info("Request time: warmed prepared-prompt generation; setup, preparation, warm-up, "
+        self.info("Request time: single generation after two startup warm-ups per worker; setup, preparation, warm-up, "
                   "postprocessing, grading, disk I/O and reporting excluded.")
 
     def start_cell(self, task, length, total):

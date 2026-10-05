@@ -16,6 +16,7 @@ from relay_cache.dream.loading import MODEL_ID, REVISION, snapshot, load_checkpo
 from relay_cache.dream.prompts import prompt_ids
 from relay_cache.dream.generate import postprocess_output
 from .baseline import official_imports, source_manifest, verify_upstream
+from .warmup import DESCRIPTION as WARMUP_DESCRIPTION
 
 METHODS = ('fast_dllm_v1', 'fast_dllm_v1_flash', 'fast_dllm_v1_no_flash', 'd2cache', 'elastic_cache')
 
@@ -34,7 +35,7 @@ def settings(method):
     p = dict(method=method, model=MODEL_ID, revision=REVISION, precision='BF16',
              seed=51713, lengths=[256,512], batch_size=1, threshold=.90,
              prompt_policy='official BOS + prepared paper_prompt; no extra chat template',
-             warmup='One excluded full request per prompt before timed replay',
+             warmup=WARMUP_DESCRIPTION,
              parallel_decoding=True, temperature=0., top_p=None, top_k=None,
              profile='Pinned official DREAM sampler/cache; common Instruct checkpoint and prepared prompts')
     if method.startswith('fast_dllm_v1'):

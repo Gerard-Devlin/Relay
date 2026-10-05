@@ -7,6 +7,7 @@ from relay_cache.utils import sha256,write_json
 from .plan import COUNTS
 from .baseline import batch_metrics,baseline_table,source_manifest
 from .baseline_batch import Events,MARK
+from .warmup import POLICY as MEASUREMENT
 
 METHODS=('relay','d2cache','elastic_cache','fast_dllm_v1_no_flash')
 MAX_GPUS=6
@@ -126,6 +127,7 @@ def campaign(path,resume=False):
     if (output/'status.json').exists() and not resume:raise RuntimeError('Existing queue requires explicit --resume')
     if config['methods']!=list(METHODS) or config['max_total_gpus']!=MAX_GPUS or config['gpus']!=list(range(8)):
         raise RuntimeError('Fixed sequential method order or resource limit changed')
+    if config.get('measurement')!=MEASUREMENT:raise RuntimeError('DREAM measurement policy changed')
     guard=json.loads((output/'source_guard.json').read_text())
     def check():
         if sha256(path)!=config_hash:raise RuntimeError('DREAM queue config changed')
@@ -137,7 +139,7 @@ def campaign(path,resume=False):
         if phase=='full' and rows is not None:full_progress[method]=len(rows)
         write_json(output/'status.json',dict(status=state,phase=phase,current_method=method,
             methods=list(METHODS),max_total_gpus=MAX_GPUS,gpus=list(range(8)),scored=sum(full_progress.values()),
-            expected=TOTAL*len(METHODS),full_progress=full_progress,stage_scored=len(rows or {}),
+            expected=TOTAL*len(METHODS),measurement=MEASUREMENT,full_progress=full_progress,stage_scored=len(rows or {}),
             stage_expected=TOTAL if phase=='full' else 8 if phase=='smoke' else 0,
             active={str(g):dict(rank=j['rank'],pid=p.pid,method=method) for g,(j,p) in running.items()},
             pending=list(jobs),completed=completed,config_sha256=config_hash,
@@ -160,7 +162,7 @@ def campaign(path,resume=False):
                     def emit(message):
                         stream.write(time.strftime('%Y-%m-%d %H:%M:%S UTC',time.gmtime())+' | '+message+'\n')
                     print('STARTING '+method+' | '+str(log),flush=True)
-                    emit('DREAM Instruct / BF16 / fixed prepared prompts and scorers; excluded warm request per prompt.')
+                    emit('DREAM Instruct / BF16 / fixed prepared prompts and scorers; two excluded startup requests per worker, then single generation.')
                     phases=[('smoke',1,1),('full',6,None)] if method.startswith('fast_dllm_v1_') else [('full',6,None)]
                     for phase,world,limit in phases:
                         folder=output/phase/method;rows=restore(folder,method);jobs=[dict(rank=r) for r in range(world)]
@@ -209,7 +211,7 @@ def campaign(path,resume=False):
                         cells=metrics(rows,limit)
                         if len(rows)!=(8 if limit else TOTAL) or not all(c['complete'] for c in cells.values()):raise RuntimeError('Incomplete DREAM coverage')
                         if any(not (folder/f'rank{r}/complete').exists() for r in range(world)):raise RuntimeError('Missing DREAM rank marker')
-                        write_json(output/(phase+'_'+method+'_summary.json'),dict(status='complete',method=method,scored=len(rows),cells=cells))
+                        write_json(output/(phase+'_'+method+'_summary.json'),dict(status='complete',method=method,scored=len(rows),cells=cells,measurement=MEASUREMENT))
                         status('running',rows)
                         emit(phase+' complete\n'+baseline_table(cells))
                         print(method+' '+phase+' complete',flush=True)

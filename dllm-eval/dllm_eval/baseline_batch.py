@@ -276,7 +276,7 @@ def campaign(args):
                     report=status('complete' if phase=='full' else 'smoke_complete')
                     write_json(args.output/(phase+'_summary.json'),report)
                     for method,cells in report['cells'].items():emit(method+' '+phase+' results\n'+baseline_table(cells),method)
-                    emit(phase+' complete; warm/timed token/text/NFE checks all passed')
+                    emit(phase+' complete; two startup warm-ups per worker, single measured generation per request')
                 except BaseException:
                     status('failed')
                     for job,proc in running.values():

@@ -7,6 +7,7 @@ from relay_cache.utils import generation_prompt,select_samples
 from relay_cache.guards import ROOT,verify_sources,verify_environment,fingerprint,validate_resume
 from .reporting import evaluation_log
 from .plan import COUNTS
+from .warmup import POLICY as MEASUREMENT,DESCRIPTION as WARMUP_DESCRIPTION,startup
 
 def parser():
     p=argparse.ArgumentParser(description=__doc__)
@@ -69,7 +70,8 @@ def run_evaluation(args,reporter):
     from .evaluation import evaluate
     from .scoring_guard import installed
     from .score_answers import policy_hash
-    manifest=dict(schema=1,sources=sources,environment=env,settings=settings,datasets=data,config_sha256=sha256(args.config),
+    manifest=dict(schema=1,sources=sources,environment=env,settings=dict(settings,warmup=WARMUP_DESCRIPTION),
+        measurement=MEASUREMENT,datasets=data,config_sha256=sha256(args.config),
         lengths=args.lengths,tasks=args.tasks,rank=args.rank,world_size=args.world_size,policy_sha256=policy_hash(),
         model=settings['model'] if dream else 'GSAI-ML/LLaDA-8B-Instruct',
         revision=settings['revision'] if dream else '08b83a6feb34df1a6011b80c3c00c7563e963b07',
@@ -81,9 +83,9 @@ def run_evaluation(args,reporter):
             binding=check_binding();write_json(args.output/'resource.json',dict(gpu=gpu,binding=binding))
             reporter.start_run(args,samples)
             if dream:
-                from relay_cache.dream.generate import Session,assert_same_generation
+                from relay_cache.dream.generate import Session
             else:
-                from relay_cache.llada.generate import Session,assert_same_generation
+                from relay_cache.llada.generate import Session
             session=None;events=[];all_scalars=[]
             for length in args.lengths:
                 for task in args.tasks:
@@ -101,12 +103,12 @@ def run_evaluation(args,reporter):
                             if session is None:
                                 began=time.perf_counter();session=Session(backend=args.dream_backend) if dream else Session()
                                 write_json(args.output/'setup.json',dict(model_load_seconds=time.perf_counter()-began,excluded_from_request=True))
+                                startup(session,samples,args,reporter)
                             began=time.perf_counter();prompt=session.prepare(generation_prompt(sample),task)
                             prepared=time.perf_counter()-began
-                            warm=session.generate(prompt,length,sample,task);result=session.generate(prompt,length,sample,task)
-                            assert_same_generation(warm,result)
+                            result=session.generate(prompt,length,sample,task)
                             row=dict(task=task,length=length,id=ident,prompt_sha256=prompt_hash,result=result,
-                                prepare_seconds_excluded=prepared,warm_seconds_excluded=warm['seconds'],
+                                prepare_seconds_excluded=prepared,warm_seconds_excluded=0.,
                                 manifest_sha256=sha256(args.output/'manifest.json'))
                             write_json(path,row)
                         if row.get('manifest_sha256')!=sha256(args.output/'manifest.json'):
@@ -129,7 +131,8 @@ def run_evaluation(args,reporter):
                         mean_nfe=sum(r['nfe'] for r in part)/n if n else None)
             verify_sources();validate_resume(json.loads((args.output/'manifest.json').read_text()),manifest)
             write_json(args.output/'summary.json',dict(status='complete',cells=cells,scored=len(all_scalars),
-                scoring_compatibility_events=events,scope='Warmed prepared-prompt requests; warm-up, setup, preparation, postprocessing, disk and scoring excluded'))
+                scoring_compatibility_events=events,measurement=MEASUREMENT,
+                scope='Single prepared-prompt requests after two startup warm-ups per worker; warm-up, setup, preparation, postprocessing, disk and scoring excluded'))
             (args.output/'complete').write_text('OK\n')
             reporter.finish(cells,args.output)
 

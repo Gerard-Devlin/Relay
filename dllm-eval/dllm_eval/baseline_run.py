@@ -8,11 +8,12 @@ from relay_cache.guards import (ROOT, verify_sources, verify_environment, finger
                                 exclusive_lock, gpu_lease, check_binding, validate_resume, validate_settings)
 from relay_cache.utils import write_json, sha256, generation_prompt
 from .run import parser as base_parser, read_data, prepare_run
-from .baseline import settings, source_manifest, verify_upstream, Session, assert_same_generation, batches, batch_metrics, baseline_table
+from .baseline import settings, source_manifest, verify_upstream, Session, batches, batch_metrics, baseline_table
 from .evaluation import evaluate
 from .scoring_guard import installed
 from .score_answers import policy_hash
 from .reporting import evaluation_log
+from .warmup import POLICY as MEASUREMENT,DESCRIPTION as WARMUP_DESCRIPTION,startup
 
 
 class BaselineReporter:
@@ -21,7 +22,7 @@ class BaselineReporter:
     def info(self,message):self.base.info(message)
     def start_run(self,args,samples):
         self.info(f'{args.method} | GPU {args.gpu} | shard {args.rank+1}/{args.world_size}')
-        self.info('Warmed batch latency and amortized time/item; setup, preparation, warm-up, scoring and I/O excluded.')
+        self.info('Two startup warm-ups per worker, then single generation; batch latency and time/item separate. Setup, preparation, warm-up, scoring and I/O excluded.')
     def start_cell(self,task,length,total):
         self.base.start_cell(task,length,total);self.key=f'{task}_{length}';self.rows=[]
     def update(self,row):
@@ -68,12 +69,12 @@ def run_evaluation(args, reporter):
         if value:
             os.environ[name] = str(value)
     os.environ['HF_HUB_OFFLINE'] = os.environ['TRANSFORMERS_OFFLINE'] = '1'
-    profile = model_settings(args.method)
+    profile = dict(model_settings(args.method),warmup=WARMUP_DESCRIPTION)
     manifest = dict(schema=1, sources=sources, upstream=upstream, environment=env, settings=profile,
                     datasets=data, config_sha256=sha256(args.config), lengths=args.lengths, tasks=args.tasks,
                     rank=args.rank, world_size=args.world_size, policy_sha256=policy_hash(),
                     model=profile['model'], revision=profile['revision'],
-                    input_whitelist='paper_prompt or prompt only; references accessed after generation persistence')
+                    measurement=MEASUREMENT,input_whitelist='paper_prompt or prompt only; references accessed after generation persistence')
     with exclusive_lock(args.output.parent / (args.output.name + '.lock')):
         prepare_run(args.output, manifest, args.resume)
         with gpu_lease(args.gpu) as gpu:
@@ -101,12 +102,11 @@ def run_evaluation(args, reporter):
                             if session is None:
                                 began=time.perf_counter();session=ModelSession(args.method,args.baseline_source)
                                 write_json(args.output/'setup.json',dict(model_load_seconds=time.perf_counter()-began))
+                                startup(session,samples,args,reporter,args.method)
                             began=time.perf_counter();prompt=session.prepare_batch(prompts,task);prepared=time.perf_counter()-began
-                            warm=session.generate_batch(prompt,length,group,task,batch_id)
                             results=session.generate_batch(prompt,length,group,task,batch_id)
-                            for a,b in zip(warm,results):assert_same_generation(a,b)
                             saved=dict(ids=identities,prompt_hashes=prompt_hashes,results=results,
-                                prepare_seconds_excluded=prepared,warm_batch_seconds_excluded=warm[0]['batch_seconds'],
+                                prepare_seconds_excluded=prepared,warm_batch_seconds_excluded=0.,
                                 manifest_sha256=sha256(args.output/'manifest.json'))
                             write_json(batch_path,saved)
                         if len(saved['results'])!=len(group):
@@ -123,8 +123,8 @@ def run_evaluation(args, reporter):
             verify_sources()
             validate_resume(json.loads((args.output/'manifest.json').read_text()), manifest)
             write_json(args.output/'summary.json', dict(status='complete', method=args.method, cells=cells,
-                scored=len(scalars), scoring_compatibility_events=events,
-                scope='Warmed generation time; batch latency and amortized time per item are separate. Setup, prompt preparation, warm-up, postprocessing, scoring and I/O excluded'))
+                scored=len(scalars), scoring_compatibility_events=events,measurement=MEASUREMENT,
+                scope='Single generation after two startup warm-ups per worker; batch latency and amortized time per item are separate. Setup, prompt preparation, warm-up, postprocessing, scoring and I/O excluded'))
             (args.output/'complete').write_text('OK\n')
             reporter.finish(cells, args.output)
 

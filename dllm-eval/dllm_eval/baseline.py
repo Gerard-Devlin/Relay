@@ -13,6 +13,7 @@ from pathlib import Path
 from relay_cache.utils import sha256, prompt_ids
 from relay_cache.llada.loading import MODEL_ID, REVISION, snapshot
 from relay_cache.llada.generate import postprocess_output
+from .warmup import DESCRIPTION as WARMUP_DESCRIPTION
 
 SOURCES = {
     'elastic_cache': ('https://github.com/VILA-Lab/Elastic-Cache.git', '1960d8fc6231205a1ae4ebba3898d475e339f7e1'),
@@ -35,7 +36,7 @@ def official_token_environment():
 def settings(method):
     result = dict(method=method, model=MODEL_ID, revision=REVISION, precision='BF16',
                   seed=51713, lengths=[256, 512], sampling='official deterministic maskgit / low_confidence',
-                  warmup='One excluded full request per prompt before timed replay', batch_size=1,
+                  warmup=WARMUP_DESCRIPTION, batch_size=1,
                   stop_until_eos=False, parallel_decoding=False)
     if method == 'elastic_cache':
         result.update(profile='Unmodified official Elastic-Cache LLaDA task scripts; checkpoint fixed for comparison',
