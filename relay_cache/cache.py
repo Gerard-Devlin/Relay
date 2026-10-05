@@ -67,10 +67,9 @@ class Engine:
         self.original=self.module.flash_fused_elastic_cache
         self.boundaries=None;self.labels=None;self.call=None;self.epoch=0
         self.row_layers=0;self.optional_skipped_row_layers=0;self.normal_calls=0
-        self.boundary_bytes=0;self.phase_counts=[0,0,0,0];self.private_calls=0
+        self.boundary_bytes=0;self.phase_counts=[0,0,0,0]
     def begin(self,ids,positions,lengths,frontier,masked_count):
-        if lengths[-1]:
-            self.call=None;self.private_calls+=1;return
+        if lengths[-1]:raise ValueError("Unsupported private cache mode")
         if not self.enabled:
             self.call=None;return
         assert len(lengths[5])==1 and self.model.config.n_layers==32
@@ -105,8 +104,8 @@ class Engine:
         self.phase_counts[plan.phase]+=not first;self.normal_calls+=1
     def forward(self,block,x,layer,positions,lengths,softmax_scale=None):
         c=self.call
-        if not self.enabled or lengths[-1]:
-            if not lengths[-1]:self.row_layers+=x.shape[0]
+        if not self.enabled:
+            self.row_layers+=x.shape[0]
             return self.original(block,x,layer,positions,lengths,softmax_scale)
         assert c is not None and layer==len(c['seen']);c['seen'].append(layer)
         plan=c['plan'];q=c['q'];full=self.full or c['first'] or layer//8==plan.phase
@@ -145,7 +144,6 @@ class Runtime(NativeRuntime):
     def __init__(self,model,frontier,engine):
         super().__init__(model,frontier);self.engine=engine
     def __call__(self,*args,readout_rows=None,**kwargs):
-        self.frontier.stage=bool(kwargs['lengths'][-1])
         self.engine.begin(args[0].squeeze(0),kwargs['positions'],kwargs['lengths'],self.frontier,readout_rows[1])
         try:return super().__call__(*args,readout_rows=readout_rows,**kwargs)
         finally:self.engine.end()

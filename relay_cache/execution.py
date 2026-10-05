@@ -1,6 +1,6 @@
 """Consumed-row execution adapter, telemetry and original cache frontier.
 
-Pinned upstream operations stay in model/; local adapters are compiled in memory.
+The ordinary decoding path uses compact readout and local cache adapters.
 """
 import ast,functools,inspect,io,math,textwrap,torch
 import torch.nn.functional as F
@@ -142,7 +142,7 @@ class ModelReadout:
     def __call__(self,*args,readout_rows=None,**kwargs):
         if readout_rows is None:raise ValueError('Missing pinned consumer row metadata')
         start,count=map(int,readout_rows)
-        self.current=dict(start=start,count=count,verify=bool(kwargs['lengths'][-1]))
+        self.current=dict(start=start,count=count)
         if not self.compact:
             value=self.model_ref(*args,**kwargs)
             if self.observer:self.observer(self.current,args,kwargs,value)
@@ -152,32 +152,30 @@ class ModelReadout:
             full[0]=value.shape[1]
             if not 0<=start<=start+count<=full[0]:raise ValueError('Head consumer outside hidden canvas')
             # Preserve FULL final normalization, then reduce only projection rows.
-            # Empty verification has no consumer; Transformer/cache still execute.
             return pad_rows(value[:,start:start+count],self.minimum if count else 0)
         norm=self.model_ref.model.transformer.ln_f
         handle=norm.register_forward_hook(select)
         try:value=self.model_ref(*args,**kwargs)
         finally:handle.remove()
-        from types import SimpleNamespace
         return SimpleNamespace(logits=Readout(value.logits,start,count,full[0]))
 
-def generator(function, action_observer=None, *, statistics=None):
+def generator(function, action_observer=None, *, statistics=None, transform=None):
     """Fail closed on unknown source; change only consumer metadata/telemetry."""
     original=inspect.unwrap(function)
     tree=ast.parse(textwrap.dedent(inspect.getsource(original)))
     functions=[n for n in tree.body if isinstance(n,ast.FunctionDef)]
     if len(functions)!=1:raise ValueError('Expected one pinned generator')
     functions[0].decorator_list=[]
+    if transform is not None:tree=transform(tree)
     calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='model']
     calls.sort(key=lambda n:n.lineno)
-    if len(calls)!=2:raise ValueError('Expected exactly normal and verify model calls')
-    expressions=('(0, block_m) if verify else (0, query_masked_pos[0].shape[0])',
-                 '(seqlen_keep[0] + num_verify, num_verify)')
+    if len(calls)!=1:raise ValueError('Expected exactly one ordinary model call')
+    expressions=('(0, query_masked_pos[0].shape[0])',)
     for call,expression in zip(calls,expressions):
         if any(k.arg=='readout_rows' for k in call.keywords):raise ValueError('Metadata collision')
         call.keywords.append(ast.keyword(arg='readout_rows',value=ast.parse(expression,mode='eval').body))
     additions=[0]
-    reductions=dict(masked=0,verify=0,probability=0)
+    reductions=dict(masked=0,probability=0)
     class Actions(ast.NodeTransformer):
         def visit_Assign(self,node):
             self.generic_visit(node)
@@ -186,9 +184,8 @@ def generator(function, action_observer=None, *, statistics=None):
                        if isinstance(n,ast.Name)]
                 def expected(source):
                     return ast.dump(node,include_attributes=False)==ast.dump(ast.parse(source).body[0],include_attributes=False)
-                if names in (['p_masked'],['p_verify']):
-                    stem='masked' if names==['p_masked'] else 'verify'
-                    if not expected(f'p_{stem} = F.softmax(logits_{stem}_j.to(torch.float64), dim=-1)'):
+                if names==['p_masked']:
+                    if not expected('p_masked = F.softmax(logits_masked_j.to(torch.float64), dim=-1)'):
                         raise ValueError('Unexpected full-vocabulary probability source')
                     reductions['probability']+=1
                     return None
@@ -197,9 +194,6 @@ def generator(function, action_observer=None, *, statistics=None):
                         raise ValueError('Unexpected normal confidence source')
                     reductions['masked']+=1
                     node.value=ast.parse('_relay_statistics(logits_masked_j, None)',mode='eval').body
-                elif names==['x0_p_verify'] and expected('x0_p_verify = p_verify.gather(1, x_verify_j.unsqueeze(1)).view(-1)'):
-                    reductions['verify']+=1
-                    node.value=ast.parse('_relay_statistics(logits_verify_j, x_verify_j)[0]',mode='eval').body
             if action_observer is None:return node
             if len(node.targets)!=1:return node
             target=node.targets[0]
@@ -211,11 +205,11 @@ def generator(function, action_observer=None, *, statistics=None):
             callback=ast.parse('_relay_action(pos_decoded_new_j, x0_decoded_new_j)').body[0]
             return [node,ast.copy_location(callback,node)]
     tree=Actions().visit(tree)
-    if action_observer is not None and additions[0]!=2:raise ValueError('Expected two actual canvas commit sites')
+    if action_observer is not None and additions[0]!=1:raise ValueError('Expected one actual canvas commit site')
     if statistics is not None:
-        if reductions!=dict(masked=2,verify=1,probability=3):
-            raise ValueError('Expected exactly three pinned probability consumers')
-        if any(isinstance(n,ast.Name) and n.id in ('p_masked','p_verify') for n in ast.walk(tree)):
+        if reductions!=dict(masked=1,probability=1):
+            raise ValueError('Expected one ordinary probability consumer')
+        if any(isinstance(n,ast.Name) and n.id=='p_masked' for n in ast.walk(tree)):
             raise ValueError('Additional full distribution consumers cannot be bypassed')
     ast.fix_missing_locations(tree)
     scope=dict(original.__globals__)
@@ -232,41 +226,11 @@ def suppress_official_prints():
     from contextlib import redirect_stdout
     with redirect_stdout(io.StringIO()):yield
 
-def adapted(function, action=None, statistics=None, transform=None):
-    # Reuse the audited adapter, then modify its executable source AST in memory.
-    code = inspect.unwrap(function)
-    # generator compiles its changed function under this original filename. It
-    # cannot be re-inspected from disk, so build a local source provider for the
-    # small boundary fix BEFORE using the audited adapter.
-    original_source = textwrap.dedent(inspect.getsource(code))
-    tree = ast.parse(original_source)
-    fixes = 0
-    for node in ast.walk(tree):
-        if isinstance(node,ast.Assign) and ast.dump(node,include_attributes=False) == ast.dump(
-                ast.parse('logits_masked_j = logits[acc_seqlen_masked : acc_seqlen_masked + block_m]').body[0],
-                include_attributes=False):
-            node.value.slice.upper = ast.parse('acc_seqlen_masked + min(block_m,query_masked_pos[j].shape[0])',mode='eval').body
-            fixes += 1
-    assert fixes == 1
-    if transform is not None:tree=transform(tree)
-    tree.body[0].decorator_list = []
-    ast.fix_missing_locations(tree)
-    filename = code.__code__.co_filename+':scope_ragged_boundary'
-    source = ast.unparse(tree)+'\n'
-    import linecache
-    linecache.cache[filename] = (len(source),None,source.splitlines(True),filename)
-    scope = dict(code.__globals__)
-    exec(compile(source,filename,'exec'),scope)
-    return generator(torch.no_grad()(scope[code.__name__]),action,statistics=statistics)
 
-def candidate_budget(remaining, ordinary_commits, *, enabled=True):
-    if remaining<0 or ordinary_commits<0:raise ValueError('Negative frontier')
-    limit=min(24,(64-max(8,ordinary_commits))//2) if enabled else 16
-    return min(remaining,max(0,limit))
 
 class Frontier:
-    def __init__(self,cache=False,verify=False):
-        self.cache=cache;self.verify=verify
+    def __init__(self,cache=False):
+        self.cache=cache
     def reset(self,size,device):
         self.dirty=torch.zeros(size,device=device,dtype=torch.bool)
         self.age=0;self.debt=0;self.commits=0;self.plans=[]
@@ -288,8 +252,6 @@ class Frontier:
         self.plans.append(dict(required=required.numel(),allocated=result.numel(),wide=wide,edit_debt=self.debt))
         if wide:self.age=0;self.debt=0
         return result
-    def cap(self,remaining,ordinary):
-        return candidate_budget(remaining,ordinary,enabled=self.verify)
 
 def mechanism_generator(function,frontier,statistics):
     """Process-local AST changes at the budget sites; original source untouched."""
@@ -298,7 +260,7 @@ def mechanism_generator(function,frontier,statistics):
     original=__import__('inspect').unwrap(function)
     assert '_scope_frontier' not in original.__globals__
     original.__globals__['_scope_frontier']=frontier
-    counts=dict(reset=0,budget=0,cache=0)
+    counts=dict(reset=0,cache=0)
     class Rewrite(ast.NodeTransformer):
         def visit_Assign(self,node):
             self.generic_visit(node)
@@ -309,10 +271,6 @@ def mechanism_generator(function,frontier,statistics):
                     counts['reset']+=1
                     reset=ast.parse('_scope_frontier.reset(batch_size*max_length,model.device)').body[0]
                     return [node,ast.copy_location(reset,node)]
-            if isinstance(target,ast.Name) and target.id=='num_verify' and ast.dump(node.value,include_attributes=False)==ast.dump(
-                    ast.parse('min(num_verify,block_m//2)',mode='eval').body,include_attributes=False):
-                counts['budget']+=1
-                node.value=ast.parse('_scope_frontier.cap(num_verify,keep_num)',mode='eval').body
             if (isinstance(target,ast.Subscript) and isinstance(target.value,ast.Name)
                     and target.value.id=='query_tracked_pos' and isinstance(node.value,ast.Call)
                     and isinstance(node.value.func,ast.Attribute) and node.value.func.attr=='cat'):
@@ -327,29 +285,23 @@ def mechanism_generator(function,frontier,statistics):
             return node
     def transform(tree):
         tree=Rewrite().visit(tree)
-        assert counts==dict(reset=1,budget=1,cache=1),counts
+        assert counts==dict(reset=1,cache=1),counts
         return tree
-    try:return adapted(function,frontier.commit,statistics,transform)
+    try:return generator(function,frontier.commit,statistics=statistics,transform=transform)
     finally:original.__globals__.pop('_scope_frontier')
 
 class Runtime(ModelReadout):
-    """Common compact readout and empty-verify bypass for ALL pilot methods."""
+    """Compact ordinary readout and cache-refresh telemetry."""
     def __init__(self,model,frontier):
         super().__init__(model,compact=True,minimum=32)
-        self.frontier=frontier;self.calls=[];self.empty=0
+        self.frontier=frontier;self.calls=[]
     def __call__(self,*args,readout_rows=None,**kwargs):
-        verify=bool(kwargs['lengths'][-1]);start,count=readout_rows
-        if verify and count==0:
-            self.empty+=1
-            # The pinned verification branch is private: no global KV/saliency
-            # writes, no logits consumer for S=0. Decoder iteration still runs.
-            return SimpleNamespace(logits=Readout(torch.empty((1,0,self.config.vocab_size),
-                device=self.device,dtype=self.dtype),start,0,args[0].shape[1]))
+        if kwargs['lengths'][-1]:raise ValueError('Unsupported private execution mode')
         result=super().__call__(*args,readout_rows=readout_rows,**kwargs)
         # ModelReadout has already resolved this metadata to a Python int; do
         # not retain a GPU scalar in the JSON ledger or add a second readback.
-        self.calls.append(dict(verify=verify,queries=args[0].shape[1],candidates=result.logits.count if verify else None))
-        if not verify:self.frontier.refreshed(kwargs['positions'][0])
+        self.calls.append(dict(queries=args[0].shape[1]))
+        self.frontier.refreshed(kwargs['positions'][0])
         return result
 
 class OutputCapture:

@@ -1,7 +1,7 @@
 """The unchanged historical warmed prepared-prompt request path."""
 import hashlib,time
 from ..cache import Engine,Runtime,RelayFrontier
-from ..execution import Frontier,mechanism_generator
+from ..execution import mechanism_generator
 from ..execution import statistics
 from ..execution import suppress_official_prints
 from ..execution import OutputCapture,forbid_sdpa
@@ -27,14 +27,11 @@ def postprocess_output(tokenizer, token_ids, sample, task):
 
 class Counting:
     def reset(self,*args):
-        super().reset(*args);self.stage=False;self.ordinary_accepted=0;self.private_accepted=0;self.actions=None
+        super().reset(*args);self.ordinary_accepted=0;self.actions=None
     def commit(self,positions,values):
         super().commit(positions,values)
-        if self.stage:self.private_accepted+=positions.numel()
-        else:self.ordinary_accepted+=positions.numel()
+        self.ordinary_accepted+=positions.numel()
         if self.actions is not None:self.actions.append((tuple(positions.tolist()),tuple(values.tolist())))
-
-class Counter(Counting,Frontier):pass
 
 class RelayCounter(Counting,RelayFrontier):pass
 
@@ -52,7 +49,7 @@ class Session:
         import torch
         if length not in (256,512):raise ValueError("Frozen reproduction supports 256/512")
         with torch.no_grad():
-            frontier=RelayCounter(cache=True,verify=False)
+            frontier=RelayCounter(cache=True)
             engine=Engine(self.model,True,False);runtime=Runtime(self.model,frontier,engine)
             function=mechanism_generator(self.external,frontier,statistics)
             if audit:
@@ -65,12 +62,11 @@ class Session:
                 torch.cuda.synchronize();started=time.perf_counter()
                 with engine.installed(),forbid_sdpa(),suppress_official_prints():
                     function(runtime,[prompt],[prompt.numel()],1,text,steps,gen_length=length,block_length=32,
-                        threshold=.9,gamma=.8,track_num=4,mask_num=4,verify=False,tokenizer=capture,
+                        threshold=.9,track_num=4,mask_num=4,tokenizer=capture,
                         stop_tokens=sample.get('generation_kwargs',{}).get('until',[]))
                 torch.cuda.synchronize();seconds=time.perf_counter()-started
             finally:handle.remove()
             assert counts[0]==len(runtime.calls) and capture.ids is not None and text[0] is not None
-            assert not any(c['verify'] for c in runtime.calls)
             row=dict(seconds=seconds,nfe=counts[0],iterations=steps[0],token_ids=capture.ids,raw_decoder_text=text[0],
                 ordinary_calls=len(runtime.calls),private_calls=0,ordinary_accepted=frontier.ordinary_accepted,
                 actual_ordinary_row_layers=engine.row_layers,optional_row_layers_skipped=engine.optional_skipped_row_layers,
