@@ -1,6 +1,7 @@
-"""DREAM's native sampler with an independent Relay stripe-cache adapter.
+"""DREAM Instruct integration and shift-aware Relay stripe caching.
 
-The checkpoint's sampler is unchanged. MASK queries, their shifted readout
+The native backend retains the official entropy sampler. Relay uses an adaptive
+32-token sliding frontier. Live MASK queries, their shifted readout
 predecessors, and changed identities traverse every layer. Stable history uses
 rotating stripes; it still contributes cached KV to every attention call.
 This adapter is approximate and has no DREAM performance/quality claim yet.
@@ -14,10 +15,23 @@ from .loading import MODEL_ID, REVISION, load_model, validate_checkpoint
 
 SETTINGS = dict(method="relay_dream", model=MODEL_ID, revision=REVISION,
     stripe_width=8, history_budget=128, lengths=[256, 512], seed=51713,
-    precision="BF16", alg="entropy", alg_temp=0.0, temperature=0.0,
-    top_p=None, top_k=None, eps=0.001, steps={"256":256, "512":512},
-    verify=False, schedule="Official DREAM full-canvas diffusion sampler")
-SETTINGS['prompt_policy'] = 'official BOS + prepared paper_prompt; no extra chat template'
+    precision="BF16", alg="confidence_threshold", temperature=0.0,
+    top_p=None, top_k=None, block=32, threshold=.90, track=4, mask=4,
+    verify=False, schedule="Shift-aware Relay sliding frontier; adaptive calls",
+    selected_readout=True)
+from .prompts import CHAT_POLICY
+SETTINGS['prompt_policy'] = CHAT_POLICY
+
+
+def backend_settings(backend):
+    if backend not in ('relay','native','uncached'):
+        raise ValueError('Unknown DREAM backend')
+    value = dict(SETTINGS,backend=backend)
+    if backend == 'native':
+        value.update(alg='entropy',temperature=.1,top_p=.9,alg_temp=0.,eps=.001,
+                     steps={'256':256,'512':512},selected_readout=False,
+                     schedule='Official DREAM Instruct full-canvas entropy sampler')
+    return value
 
 
 def validate_settings(value):
@@ -25,14 +39,21 @@ def validate_settings(value):
         raise ValueError("DREAM reproduction settings changed")
 
 
-def required_positions(ids, previous, mask_id):
+def required_positions(ids, previous, mask_id, live_positions=None):
     """DREAM shifts logits right: predicting position i requires query i-1."""
     import torch
     if ids.ndim != 2 or ids.shape[0] != 1 or ids.shape[1] == 0:
         raise ValueError("DREAM Relay requires a nonempty, unpadded batch of one")
     masked = ids[0] == mask_id
-    required = masked.clone()
-    readout = torch.nonzero(masked, as_tuple=False).flatten().sub(1).clamp_min(0)
+    if live_positions is None:
+        live_positions = torch.nonzero(masked, as_tuple=False).flatten()
+    if live_positions.ndim != 1 or bool((live_positions<0).any()) or bool((live_positions>=ids.shape[1]).any()):
+        raise ValueError('Invalid live DREAM positions')
+    if not bool(masked[live_positions].all()):
+        raise ValueError('Live DREAM frontier must contain unresolved positions')
+    required = torch.zeros_like(masked)
+    required[live_positions] = True
+    readout = live_positions.sub(1).clamp_min(0)
     required[readout] = True
     dirty = torch.ones_like(required) if previous is None else ids[0] != previous[0]
     return required | dirty, dirty, masked
@@ -55,6 +76,10 @@ class Engine:
         self.calls = self.row_layers = self.skipped = 0
         self.phase_counts = [0] * self.stripes
         self.active = False
+        self.live_positions = None
+
+    def schedule(self, live_positions):
+        self.live_positions = live_positions
 
     def begin(self, _model, args, kwargs):
         import torch
@@ -63,14 +88,16 @@ class Engine:
             raise ValueError("Use token IDs and disable autoregressive append-cache for DREAM")
         if self.previous is not None and ids.shape != self.previous.shape:
             raise ValueError("DREAM canvas shape changed within a request")
-        required, dirty, masked = required_positions(ids, self.previous, self.mask_id)
+        required, dirty, masked = required_positions(ids, self.previous, self.mask_id,self.live_positions)
         mask = kwargs.get("attention_mask", args[1] if len(args) > 1 else None)
         if isinstance(mask, torch.Tensor):
             raise ValueError("DREAM Relay currently requires an unpadded full-attention canvas")
         self.first = self.previous is None
         self.phase = max(0, self.calls - 1) % self.stripes
         self.required = torch.nonzero(required, as_tuple=False).flatten()
-        eligible = torch.nonzero(~required, as_tuple=False).flatten()
+        # History stripes only apply to immutable decoded/prompt identities.
+        # Distant future MASK KV remains cached until it enters the live frontier.
+        eligible = torch.nonzero(~required & ~masked, as_tuple=False).flatten()
         spare = max(0, self.budget - int((dirty & ~masked).sum()))
         if eligible.numel() and spare:
             score = self.saliency[eligible] if self.saliency is not None else eligible.float()
@@ -96,6 +123,10 @@ class Engine:
         if self.boundaries is None:
             self.boundaries = torch.empty((self.stripes + 1, *hidden_states.shape),
                                           device=hidden_states.device, dtype=hidden_states.dtype)
+        if layer_index == 0:
+            # The model already computed current embeddings for every identity.
+            # A newly decoded token must never later refresh from its old MASK.
+            self.boundaries[0].copy_(hidden_states)
         stripe = layer_index // self.width
         if layer_index % self.width == 0:
             if self.first:
@@ -173,6 +204,7 @@ class Engine:
             del self.model._relay_dream_engine
             self.kv = [None] * len(self.layers)
             self.boundaries = self.previous = self.saliency = None
+            self.live_positions = None
 
 
 def postprocess_output(tokenizer, raw, sample):
@@ -194,17 +226,18 @@ def assert_same_generation(a, b):
 class Session:
     def __init__(self, backend="relay", model=None, tokenizer=None):
         import torch
-        if backend not in ("relay", "native"):
+        if backend not in ("relay", "native", "uncached"):
             raise ValueError("Unknown DREAM backend")
         torch.set_num_threads(1)
         self.model, self.tokenizer = load_model() if model is None else (model, tokenizer)
         self.model.config.use_cache = False
         self.backend = backend
+        self.settings = backend_settings(backend)
 
     def prepare(self, text, task, preformatted=True):
         import torch
         from .prompts import prompt_ids
-        ids = prompt_ids(self.tokenizer, text)
+        ids = prompt_ids(self.tokenizer, text, style='chat')
         return torch.tensor([ids], device=self.model.device, dtype=torch.long)
 
     def generate(self, prompt, length, sample, task, audit=False):
@@ -229,12 +262,18 @@ class Session:
             with torch.no_grad(), torch.random.fork_rng(devices=devices):
                 torch.manual_seed(SETTINGS["seed"])
                 synchronize(); started = time.perf_counter()
-                with engine.installed() if engine else nullcontext():
-                    sequence = self.model.diffusion_generate(prompt, max_new_tokens=length,
-                        steps=SETTINGS["steps"][str(length)], alg=SETTINGS["alg"], alg_temp=SETTINGS["alg_temp"],
-                        temperature=SETTINGS["temperature"], top_p=SETTINGS["top_p"], top_k=SETTINGS["top_k"],
-                        eps=SETTINGS["eps"], mask_token_id=self.model.config.mask_token_id,
-                        generation_tokens_hook_func=observe)
+                if self.backend == 'native':
+                    p=self.settings
+                    sequence = self.model.diffusion_generate(prompt,max_new_tokens=length,
+                        steps=p['steps'][str(length)],alg=p['alg'],alg_temp=p['alg_temp'],
+                        temperature=p['temperature'],top_p=p['top_p'],top_k=p['top_k'],eps=p['eps'],
+                        mask_token_id=self.model.config.mask_token_id,generation_tokens_hook_func=observe)
+                else:
+                    from .decoder import generate
+                    sequence,decoding=generate(self.model,prompt,length,engine=engine,
+                        block=SETTINGS['block'],mask_blocks=SETTINGS['mask'],threshold=SETTINGS['threshold'],
+                        selected_readout=SETTINGS['selected_readout'],audit=audit)
+                    if audit: actions=decoding['actions']
                 synchronize()
                 seconds = time.perf_counter() - started
                 ids = sequence[0, prompt.shape[1]:].tolist()
@@ -249,6 +288,7 @@ class Session:
             output_tokens=sum(v not in eos for v in processed), nfe=calls[0], iterations=calls[0],
             ordinary_calls=calls[0], private_calls=0, backend="DREAM official SDPA; " + self.backend,
             model=MODEL_ID, revision=REVISION, first_eos=first_eos, truncated=first_eos is None,
+            sampling=self.settings,
             actual_ordinary_row_layers=engine.row_layers if engine else calls[0]*sequence.numel()*len(self.model.model.layers),
             optional_row_layers_skipped=engine.skipped if engine else 0,
             phase_counts=engine.phase_counts if engine else [])

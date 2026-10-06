@@ -5,7 +5,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     q=p.add_mutually_exclusive_group(required=True);q.add_argument('--prompt');q.add_argument('--prompt-file',type=Path)
     p.add_argument('--model',choices=('llada','dream'),default='llada')
-    p.add_argument('--dream-backend',choices=('relay','native'),default='relay')
+    p.add_argument('--dream-backend',choices=('relay','native','uncached'),default='relay')
     p.add_argument('--gpu',required=True,help='Idle physical GPU index or UUID')
     p.add_argument('--length',type=int,choices=(256,512),default=256)
     p.add_argument('--task',choices=('gsm8k','math','humaneval','mbpp'),default='gsm8k')

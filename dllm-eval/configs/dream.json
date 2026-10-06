@@ -11,19 +11,18 @@
     ],
     "seed": 51713,
     "precision": "BF16",
-    "alg": "entropy",
-    "alg_temp": 0.0,
+    "alg": "confidence_threshold",
     "temperature": 0.0,
     "top_p": null,
     "top_k": null,
-    "eps": 0.001,
-    "steps": {
-      "256": 256,
-      "512": 512
-    },
+    "block": 32,
+    "threshold": 0.9,
+    "track": 4,
+    "mask": 4,
     "verify": false,
-    "schedule": "Official DREAM full-canvas diffusion sampler",
-    "prompt_policy": "official BOS + prepared paper_prompt; no extra chat template"
+    "schedule": "Shift-aware Relay sliding frontier; adaptive calls",
+    "selected_readout": true,
+    "prompt_policy": "DREAM Instruct chat template; prepared legitimate prompt as user content"
   },
   "datasets": {
     "gsm8k": "gsm8k_paper_5shot.json",

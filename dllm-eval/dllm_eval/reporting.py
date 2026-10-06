@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import threading
+import tempfile
 import traceback
 from contextlib import contextmanager
 from datetime import datetime
@@ -138,10 +139,13 @@ def evaluation_log(directory, output, rank=0):
     directory.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", Path(output).name) or "relay"
-    path = directory / f"{safe_name}_{stamp}_r{rank}_{os.getpid()}.log"
     original_out, original_err = sys.stdout, sys.stderr
     lock = threading.RLock()
-    with path.open("x", encoding="utf-8", buffering=1) as logfile:
+    # Atomically reserve a distinct transcript even when the clock repeats.
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", buffering=1,
+            dir=directory, prefix=f"{safe_name}_{stamp}_r{rank}_{os.getpid()}_",
+            suffix=".log", delete=False) as logfile:
+        path = Path(logfile.name)
         reporter = Reporter(path, _ProgressOutput(original_err, logfile, lock))
         sys.stdout = _Tee(original_out, logfile, lock)
         sys.stderr = _Tee(original_err, logfile, lock)

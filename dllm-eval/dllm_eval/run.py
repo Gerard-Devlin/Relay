@@ -12,7 +12,8 @@ from .warmup import POLICY as MEASUREMENT,DESCRIPTION as WARMUP_DESCRIPTION,star
 def parser():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--model',choices=('llada','dream'),default='llada')
-    p.add_argument('--dream-backend',choices=('relay','native'),default='relay')
+    p.add_argument('--dream-backend',choices=('relay','native','uncached'),default='relay',
+                   help='relay cache, official entropy native, or same parallel decoder without cache')
     p.add_argument('--config',type=Path)
     p.add_argument('--data-root',type=Path,required=True)
     p.add_argument('--dataset',action='append',default=[],metavar='TASK=PATH')
@@ -76,7 +77,10 @@ def run_evaluation(args,reporter):
         model=settings['model'] if dream else 'GSAI-ML/LLaDA-8B-Instruct',
         revision=settings['revision'] if dream else '08b83a6feb34df1a6011b80c3c00c7563e963b07',
         input_whitelist='paper_prompt or prompt only; references are accessed after generation persistence')
-    if dream:manifest['backend']=args.dream_backend
+    if dream:
+        from relay_cache.dream.generate import backend_settings
+        manifest['backend']=args.dream_backend
+        manifest['sampling']=backend_settings(args.dream_backend)
     with exclusive_lock(args.output.parent/(args.output.name+'.lock')):
         prepare_run(args.output,manifest,args.resume)
         with gpu_lease(args.gpu) as gpu:

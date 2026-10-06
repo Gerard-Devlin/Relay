@@ -1,104 +1,98 @@
-# DREAM evaluation
+# DREAM integration
 
-Use the existing environment and the downloaded
-`Dream-org/Dream-v0-Instruct-7B` checkpoint. Generation is offline.
-Every method receives the same prepared task prompt with DREAM's official BOS
-prefix, without the LLaDA chat template. Reference answers and code tests enter
-only the scorer, after generation has been saved.
+DREAM support is experimental. Use the existing environment and cached
+`Dream-org/Dream-v0-Instruct-7B` weights; generation stays offline. The LLaDA
+implementation, historical results and mathematical/code scorers are unchanged.
+Reference answers and executable tests are read only after generation is saved.
 
-## Methods
+## Relay and controls
 
-| Method | Official generation path |
+Relay uses a 32-token confidence-parallel sliding frontier, threshold 0.90,
+four MASK windows, eight-layer history stripes and history budget 128. DREAM's
+logit for position `i` comes from hidden row `i-1`: both live queries and their
+readout predecessors are recomputed, as are changed token identities. Other
+positions retain full-context KV. Embedding boundaries always use current token
+identities, including positions decoded after cache initialization. Consumed
+hidden rows alone enter the output projection. There is no draft verification.
+
+Both control backends use the same Instruct chat template as Relay:
+
+| `--dream-backend` | Sampling | Cache |
+| --- | --- | --- |
+| `native` | Official DREAM entropy sampler, temperature 0.1, top-p 0.9, 256/512 steps | None |
+| `uncached` | Same sliding frontier and greedy confidence rule as Relay | None |
+| `relay` | Same sliding frontier and greedy confidence rule | Relay stripes |
+
+The `uncached` control separates the sampling change from approximate caching.
+Relay changes the native trajectory and is **not lossless**. A corrected
+integration or a passing smoke test does not establish benchmark accuracy.
+
+## External baselines
+
+d²Cache and Elastic-Cache load their own pinned DREAM model, cache and sampler
+modules. The evaluation wrapper does not substitute Relay components or patch
+upstream source. Each external method runs in a fresh process.
+
+| Method | Native profile |
 | --- | --- |
-| Relay | Native DREAM entropy sampler with Relay stripe refresh |
-| Fast-dLLM v1 | Prefix cache + confidence-threshold parallel decoding, dual cache off |
-| d2Cache | Official shift-aware generator, eager attention and dual adaptive cache, parallel threshold 0.90 |
-| Elastic-Cache | Official DREAM elastic generator, window 32, threshold/gamma 0.90, track 1 |
+| Fast-dLLM v1 | Official PrefixCache, block 32, confidence threshold 0.90; dual cache off |
+| d²Cache | Official semi-AR/parallel example: block 32, threshold 0.90, generation sigma 0; cache rollout 0.1, current-k 32, sigma 10, inflate 4; DREAM top-p 0.9 |
+| Elastic-Cache | Official GSM8K profile: window 32, gamma 0.90, threshold 0.90, track 1; HumanEval script: window 16, gamma 0.98 |
 
-The external cache and sampler files are not rewritten. Their stopping schedules
-remain distinct: Elastic stops at the first decoded EOS; the other profiles
-finish their configured canvas. All outputs are truncated at the first EOS and
-task stop strings before the same four task scorers. The DREAM profile is separate
-from the historical LLaDA profile and results must not be merged across models.
+d²Cache's parallel example explicitly disables the generation certainty prior;
+its default full-canvas certainty-prior configuration is a different profile.
+Elastic has no supplied DREAM MATH/MBPP task scripts in the pinned checkout; those
+tasks use the GSM8K window/cache defaults and must be reported as such.
 
-## Commands
+External scripts use a BOS-prefixed completion prompt. For DREAM Instruct,
+d²Cache's HumanEval input follows its supplied `humaneval_instruct` task wrapper
+and generation prefix. Relay uses the Instruct chat template. All share the same
+checkpoint and underlying prepared questions, but **native-protocol results are
+not a matched-prompt ablation**. Record these prompt/sampler differences rather
+than claiming identical evaluation protocols or quietly changing a baseline.
+Final response truncation and the common task scorers remain unchanged.
 
-Replace the paths and GPU with the intended data/cache/output locations and an
-idle physical GPU. Install the package with `pip install -e . --no-deps` in the
-existing environment if it is not already installed.
+## Small checks
+
+Use an idle physical GPU, explicit cache/data paths and a fresh output directory.
+The package can be installed in the existing environment with
+`pip install -e . --no-deps`.
 
 ```bash
-python -m dllm_eval.run --model dream --gpu 7 \
+python -m dllm_eval.run --model dream --dream-backend relay --gpu 7 \
   --data-root /path/to/prepared-data --hf-home /path/to/hf-home \
-  --hf-hub-cache /path/to/hub --limit 2 --output runs/dream-relay-smoke
-
-python -m dllm_eval.baseline_run --model dream --method fast_dllm_v1 \
-  --baseline-source /path/to/Fast-dLLM --gpu 7 \
-  --data-root /path/to/prepared-data --hf-home /path/to/hf-home \
-  --hf-hub-cache /path/to/hub --limit 2 --output runs/dream-v1-smoke
+  --hf-hub-cache /path/to/hub --limit 4 --offset 64 \
+  --output runs/dream-relay-check
 
 python -m dllm_eval.baseline_run --model dream --method d2cache \
   --baseline-source /path/to/d2Cache --gpu 7 \
   --data-root /path/to/prepared-data --hf-home /path/to/hf-home \
-  --hf-hub-cache /path/to/hub --limit 2 --output runs/dream-d2-smoke
-
-python -m dllm_eval.baseline_run --model dream --method elastic_cache \
-  --baseline-source /path/to/Elastic-Cache --gpu 7 \
-  --data-root /path/to/prepared-data --hf-home /path/to/hf-home \
-  --hf-hub-cache /path/to/hub --limit 2 --output runs/dream-elastic-smoke
+  --hf-hub-cache /path/to/hub --limit 4 --offset 64 \
+  --output runs/dream-d2-check
 ```
 
-The external checkouts must match the pinned revisions in the adapter's source
-registries. Pin them with `git checkout` after cloning the official repositories.
-Run methods serially in fresh processes. Remove `--limit 2` for full evaluation;
-all four tasks and both 256/512 lengths are selected by default. A nondefault
-dataset location can be supplied with `--dataset TASK=PATH`. Output directories
-cannot be reused without an exact `--resume` manifest match.
+Use `uncached` or `native` for the Relay controls; use `elastic_cache` with its
+official source checkout for Elastic. Each source checkout must match the pinned
+registry revision. Dataset paths can be overridden with `--dataset TASK=PATH`.
+Resume requires an unchanged source/configuration/data manifest; incompatible
+old outputs must retain their own directory and must not be mixed into a new run.
 
-Each invocation writes one block-progress transcript under `log/`, per-task
-tables, durable generation records, grades and a summary. Each fresh algorithm
-worker warms up on two selected prompts at its first requested generation length.
-All benchmark requests are then generated exactly once; changing tasks or lengths
-does not trigger another warm-up. Warm requests are excluded from accuracy and NFE
-and recorded separately. A restarted worker warms up again only if new generation
-is required. The measurement policy is saved in the manifest and summary; legacy
-per-prompt-replay results retain their original timing policy. Request time excludes
-model loading, tokenization, warm-up, output processing, scoring and file I/O.
-CPU integration checks are not evidence of checkpoint accuracy or GPU speed;
-publish measurements only after the intended hardware run completes.
+Each algorithm worker performs two excluded startup requests, then generates
+each benchmark request once. Request timing excludes model loading, tokenization,
+warm-up, output processing, scoring and file I/O, and includes model execution,
+cache handling and decoding decisions. Audit replay is separate from timing.
+Each invocation writes a block-progress log under `log/`, per-task tables,
+durable records and a summary. GPU identity, occupancy checks, exclusive leases,
+source checks and duplicate-run protection remain enabled.
 
-## Sequential full campaign
+The full-campaign controller supports six simultaneous GPU leases and one log per
+method, in the order Relay, d²Cache, Elastic and v1 without FlashAttention.
+Its existing completion barrier and exact-resume requirements remain active.
+Do not resume the cancelled DREAM campaign with changed code. Validate the new
+integration and quality before creating another full campaign.
 
-`python -m dllm_eval.dream_campaign --config /path/to/queue.json` starts a
-dependency-aware controller. Its fixed method order is Relay, d2Cache,
-Elastic-Cache, and v1 without FlashAttention. The v1 profile keeps the official
-sampler and forces PyTorch SDPA's MATH backend, with no silent kernel fallback.
-It receives a small checkpoint smoke after the LLaDA completion barrier and
-before its full run. The campaign does not run v1 + FlashAttention.
-
-The queue config specifies `output`, `llada_output`, `llada_recovery`,
-`llada_v1_output`, `data_root`, `datasets` overrides, `hf_home`, `hf_hub_cache`,
-external `sources`, per-method `logs`, physical `gpu_uuids`, `gpus` (0 through 7),
-`max_total_gpus` (6), the four `methods` in the stated order, and `measurement`
-from `dllm_eval.warmup.POLICY`. Create the
-output's `source_guard.json` from `relay_cache.guards.verify_sources` before
-launching against a frozen source copy. Predecessor summaries must prove all
-eight cells and successful rank exits. The controller uses available cards
-without waiting for all six to become idle; methods remain sequential. Each
-method has one progress log shared by its ranks. `--resume` retains saved
-generations and assessments and requires unchanged source/config manifests.
-
-The initial checkpoint smoke, before the startup-only measurement policy,
-covered all four tasks at 256 and 512 tokens for each method: 32 requests, each
-with an excluded warm replay. Tokens, text and NFE
-matched the replay. Relay's full-row operator control also matched native DREAM
-logits in four real states. These checks establish integration only: its stripe
-cache changed a native-correct GSM8K answer in the smoke, so DREAM quality and
-speed remain unvalidated. Relay currently uses the native entropy schedule,
-whereas the external profiles use parallel block/window schedules.
-
-Official implementations: [Fast-dLLM](https://github.com/NVlabs/Fast-dLLM),
-[d2Cache](https://github.com/Kamichanw/d2Cache),
-[Elastic-Cache](https://github.com/VILA-Lab/Elastic-Cache),
-[DREAM](https://github.com/DreamLM/Dream). External source retains its original
-licenses and attribution.
+Official sources: [DREAM](https://github.com/DreamLM/Dream),
+[Fast-dLLM](https://github.com/NVlabs/Fast-dLLM),
+[d²Cache](https://github.com/Kamichanw/d2Cache),
+[Elastic-Cache](https://github.com/VILA-Lab/Elastic-Cache).
+External source retains its original licenses and attribution.

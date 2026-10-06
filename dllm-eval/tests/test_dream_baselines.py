@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import torch
-from dllm_eval.dream_baselines import settings,generate_official
+from dllm_eval.dream_baselines import settings,generate_official,official_prompt
 from relay_cache.dream.prompts import prompt_ids
 from relay_cache.dream.loading import validate_checkpoint, load_checkpoint
 
@@ -23,6 +23,7 @@ class DreamBaselineTests(unittest.TestCase):
         self.assertTrue(all(v['parallel_decoding'] and v['batch_size']==1 for v in p))
         self.assertFalse(p[0]['dual_cache']);self.assertTrue(p[0]['use_cache'])
         self.assertEqual(p[1]['generation_sigma'],0.);self.assertEqual(p[1]['inflate_w'],4)
+        self.assertEqual(p[1]['top_p'],.9)
         self.assertEqual(p[2]['window_length'],32);self.assertTrue(p[2]['stop_until_eos'])
         with self.assertRaises(ValueError):settings('unknown')
 
@@ -71,6 +72,25 @@ class DreamBaselineTests(unittest.TestCase):
         args=gen.call_args.kwargs
         self.assertEqual(args['mask_token_id'],151666);self.assertEqual(args['sigma'],0.)
         self.assertEqual(args['threshold'],.90);self.assertFalse(args['stop_until_eos'])
+        self.assertEqual(args['top_p'],.9)
+
+    def test_elastic_native_humaneval_script_parameters(self):
+        p=settings('elastic_cache','humaneval')
+        self.assertEqual((p['window_length'],p['gamma']),(16,.98))
+        output=torch.ones(1,259,dtype=torch.long)
+        model=SimpleNamespace(diffusion_generate=Mock(return_value=SimpleNamespace(sequences=output)))
+        session=SimpleNamespace(method='elastic_cache',model=model,tokenizer=SimpleNamespace(eos_token_id=151643,bos_token_id=151665))
+        prompt=dict(input_ids=torch.tensor([[1,2,3]]),attention_mask=torch.ones(1,3),task='humaneval')
+        generate_official(session,prompt,256)
+        args=model.diffusion_generate.call_args.kwargs
+        self.assertEqual((args['window_length'],args['steps'],args['gamma']),(16,16,.98))
+
+    def test_d2_native_instruct_task_has_only_legitimate_code_prompt(self):
+        text='def add(a, b):\n    """Return the sum."""'
+        result=official_prompt('d2cache',text,'humaneval')
+        self.assertEqual(result,'Write a solution to the following problem and make sure that it passes the tests:\n```python\n'+text+'\n```\nHere is the completed function:\n```python\n'+text+'\n')
+        self.assertEqual(official_prompt('elastic_cache',text,'humaneval'),text)
+        self.assertEqual(official_prompt('d2cache','QUESTION','gsm8k'),'QUESTION')
 
     def checkpoint(self,root,name='model.safetensors'):
         root.mkdir(parents=True,exist_ok=True)
