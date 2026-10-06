@@ -15,6 +15,12 @@ positions retain full-context KV. Embedding boundaries always use current token
 identities, including positions decoded after cache initialization. Consumed
 hidden rows alone enter the output projection. There is no draft verification.
 
+The CUDA path fuses RoPE and KV writeback with Triton, preserving BF16
+rounding at each original operation. Expanded grouped-head KV buffers persist
+within a request and update only recomputed positions; the attention operation
+and cache refresh policy are unchanged. This trades some persistent memory
+for less full-context copying. CPU tests use the reference operations.
+
 Both control backends use the same Instruct chat template as Relay:
 
 | `--dream-backend` | Sampling | Cache |

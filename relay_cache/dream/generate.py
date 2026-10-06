@@ -73,6 +73,7 @@ class Engine:
         self.mask_id = model.config.mask_token_id
         self.previous = self.boundaries = self.saliency = None
         self.kv = [None] * len(self.layers)
+        self.expanded_kv = [None] * len(self.layers)
         self.calls = self.row_layers = self.skipped = 0
         self.phase_counts = [0] * self.stripes
         self.active = False
@@ -149,16 +150,11 @@ class Engine:
             embeddings = kwargs.get("position_embeddings")
             if embeddings is None:
                 raise ValueError("DREAM shared absolute RoPE embeddings required")
-            cos, sin = (part.index_select(1, rows) for part in embeddings)
-            q, k = self.module.apply_rotary_pos_emb(q, k, cos, sin)
-            if self.kv[layer_index] is None:
-                if not self.first or rows.numel() != hidden_states.shape[1]:
-                    raise RuntimeError("DREAM cache must initialize every position")
-                self.kv[layer_index] = (k.clone(), v.clone())
-            else:
-                self.kv[layer_index][0].index_copy_(2, rows, k)
-                self.kv[layer_index][1].index_copy_(2, rows, v)
-            all_k, all_v = (self.module.repeat_kv(part, attn.num_key_value_groups) for part in self.kv[layer_index])
+            from .kernels import prepare
+            q,self.kv[layer_index],self.expanded_kv[layer_index]=prepare(
+                q,k,v,rows,*embeddings,self.kv[layer_index],self.expanded_kv[layer_index],
+                hidden_states.shape[1],self.module.apply_rotary_pos_emb,self.module.repeat_kv)
+            all_k,all_v=self.expanded_kv[layer_index]
             # Same full-attention SDPA operation as the pinned official DREAM model.
             y = torch.nn.functional.scaled_dot_product_attention(q.contiguous(), all_k.contiguous(),
                 all_v.contiguous(), attn_mask=None, dropout_p=0.0, is_causal=False)
@@ -203,6 +199,7 @@ class Engine:
             self.active = False
             del self.model._relay_dream_engine
             self.kv = [None] * len(self.layers)
+            self.expanded_kv = [None] * len(self.layers)
             self.boundaries = self.previous = self.saliency = None
             self.live_positions = None
 
