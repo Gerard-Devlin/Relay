@@ -321,7 +321,7 @@ class OutputCapture:
 def forbid_sdpa():
     original = torch.nn.functional.scaled_dot_product_attention
     def forbidden(*args, **kwargs):
-        raise AssertionError("unexpected SDPA call; require pinned fused Flash kernels")
+        raise AssertionError("unexpected SDPA call; require fused Triton attention kernels")
     torch.nn.functional.scaled_dot_product_attention = forbidden
     try:
         yield

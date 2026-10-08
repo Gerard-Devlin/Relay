@@ -4,7 +4,7 @@ import torch
 from relay_cache.cache import Engine,RelayFrontier
 
 
-def flash_fused_elastic_cache(block,x,layer,positions,lengths,softmax_scale=None):
+def fused_cache_attention(block,x,layer,positions,lengths,softmax_scale=None):
     block.k_cache.index_copy_(0,positions[0].long(),x)
     return (x+1).unsqueeze(0)
 
@@ -52,9 +52,9 @@ class TestRuntime(unittest.TestCase):
         call(e,f,list(range(8)))
         with self.assertRaises(AssertionError):call(e,f,[0,1,100,3,4,5,6,7],(2,))
     def test_module_restored_on_exception(self):
-        m=model();e=Engine(m,True);old=globals()['flash_fused_elastic_cache']
+        m=model();e=Engine(m,True);old=globals()['fused_cache_attention']
         with self.assertRaises(ValueError):
             with e.installed():raise ValueError('test cleanup')
-        self.assertIs(globals()['flash_fused_elastic_cache'],old)
+        self.assertIs(globals()['fused_cache_attention'],old)
 
 if __name__=='__main__':unittest.main()

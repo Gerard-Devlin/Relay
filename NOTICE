@@ -7,8 +7,10 @@ RelayCache builds on execution components from [Flash-dLLM](https://github.com/V
 [Hugging Face Transformers](https://github.com/huggingface/transformers), and
 [Math-Verify](https://github.com/huggingface/Math-Verify). We thank their authors for the open-source implementations.
 
-The pinned model, generator and Triton execution files in `relay_cache/llada/model/` retain the original
-Flash-dLLM implementation (Copyright 2026 VILA Lab, Apache-2.0). The HumanEval sanitizer retains
+Relay's rotating stripe and boundary-cache refresh policy is implemented in `relay_cache/cache.py`.
+The LLaDA model, decoder and fused attention/KV execution components in `relay_cache/llada/model/`
+include code adapted from Flash-dLLM (Copyright 2026 VILA Lab, Apache-2.0), LLaDA and Fast-dLLM.
+These reused execution components do not define Relay's cache-refresh policy. The HumanEval sanitizer retains
 the Fast-dLLM implementation and its original
 Copyright 2025 NVIDIA CORPORATION & AFFILIATES header, under Apache-2.0, modified upstream from
 HKUNLP/Dream. These upstream components are distinct from Relay's stripe-refresh cache policy.

@@ -64,7 +64,7 @@ class Engine:
     def __init__(self,model,enabled=False,full=False):
         self.model=model;self.enabled=enabled;self.full=full
         self.module=importlib.import_module(type(model.model.transformer.blocks[0]).__module__)
-        self.original=self.module.flash_fused_elastic_cache
+        self.original=self.module.fused_cache_attention
         self.boundaries=None;self.labels=None;self.call=None;self.epoch=0
         self.row_layers=0;self.optional_skipped_row_layers=0;self.normal_calls=0
         self.boundary_bytes=0;self.phase_counts=[0,0,0,0]
@@ -135,10 +135,10 @@ class Engine:
             self.epoch+=1;self.call=None
     @contextmanager
     def installed(self):
-        assert self.module.flash_fused_elastic_cache is self.original
-        self.module.flash_fused_elastic_cache=self.forward
+        assert self.module.fused_cache_attention is self.original
+        self.module.fused_cache_attention=self.forward
         try:yield self
-        finally:self.module.flash_fused_elastic_cache=self.original;self.call=None
+        finally:self.module.fused_cache_attention=self.original;self.call=None
 
 class Runtime(NativeRuntime):
     def __init__(self,model,frontier,engine):

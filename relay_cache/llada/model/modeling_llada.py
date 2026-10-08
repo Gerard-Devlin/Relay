@@ -52,7 +52,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.auto import AutoModel
 from transformers.cache_utils import Cache
 
-from flash_cache_triton import flash_fused_elastic_cache
+from _relay_llada_kernels import fused_cache_attention
 
 
 from .configuration_llada import (
@@ -503,7 +503,7 @@ class RotaryEmbedding(nn.Module):
 
 class ElasticRotaryEmbedding(RotaryEmbedding):
     """
-    [Custom Rotary positional embeddings for Elastic-Cache].
+    Rotary positional embeddings for cached queries.
     """
 
     def __init__(self, config: ModelConfig, cache: BufferCache):
@@ -526,9 +526,9 @@ class ElasticRotaryEmbedding(RotaryEmbedding):
     
 
 
-class FlashCacheRotaryEmbedding(RotaryEmbedding):
+class CacheRotaryEmbedding(RotaryEmbedding):
     """
-    [Custom Rotary positional embeddings for Elastic-Cache].
+    Rotary positional embeddings for cached queries.
     """
 
     def __init__(self, config: ModelConfig, cache: BufferCache):
@@ -757,17 +757,12 @@ class LLaDABlock(nn.Module):
     ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         dtype = x.dtype
 
-        x = flash_fused_elastic_cache(
+        x = fused_cache_attention(
             self, x.squeeze(0), 
             block_idx, positions, lengths,
             softmax_scale = None,
         )
 
-        # x = flash_fused_elastic_cache_ablation(
-        #     self, x.squeeze(0), 
-        #     block_idx, positions, lengths,
-        #     softmax_scale = None,
-        # )
        
         # Apply output projection.
         return x

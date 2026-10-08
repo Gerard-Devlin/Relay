@@ -17,14 +17,14 @@ from relay_cache import cache, execution
 
 def load_decoder(source):
     tree = ast.parse(source.read_text())
-    names = {'get_rotary_embedding', 'make_blocks', 'generate_with_Flash_dLLM'}
+    names = {'get_rotary_embedding', 'make_blocks', 'generate'}
     tree.body = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     scope = dict(torch=torch, F=F, einsum=torch.einsum, time=time, __name__=__name__)
     exec(compile(tree, str(source), 'exec'), scope)
-    return scope['generate_with_Flash_dLLM']
+    return scope['generate']
 
 
-def flash_fused_elastic_cache(block, x, layer, positions, lengths, softmax_scale=None):
+def fused_cache_attention(block, x, layer, positions, lengths, softmax_scale=None):
     block.k_cache.index_copy_(0, positions[0].long(), x)
     block.v_cache.index_copy_(0, positions[0].long(), x * .5)
     return (x + (layer + 1) / 128).unsqueeze(0)
@@ -56,7 +56,7 @@ class Predictor(torch.nn.Module):
         x = ids[0, :, None].double().expand(-1, 16).clone()
         module = importlib.import_module(type(self.model.transformer.blocks[0]).__module__)
         for layer, block in enumerate(self.model.transformer.blocks):
-            x = module.flash_fused_elastic_cache(block, x, layer, positions, lengths).squeeze(0)
+            x = module.fused_cache_attention(block, x, layer, positions, lengths).squeeze(0)
         positions[4].add_(torch.arange(positions[4].numel()) % 11)
         logits = torch.zeros((q.numel(), 16), dtype=self.dtype)
         for row, absolute in enumerate(q.tolist()):
@@ -110,7 +110,7 @@ def exercise(source, execution_module=execution, cache_module=cache, *, length=6
         assert not model.model.transformer.ln_f._forward_hooks
         assert engine.call is None
         assert model.calls and '_scope_frontier' not in decoder.__wrapped__.__globals__
-        assert flash_fused_elastic_cache is engine.original
+        assert fused_cache_attention is engine.original
         raise
     initialized = engine.labels >= 0
     return dict(response=response, steps=steps, actions=actions, raw=tokenizer.raw, calls=model.calls,

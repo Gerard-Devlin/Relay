@@ -1,4 +1,4 @@
-"""Load only the pinned Flash execution class and original offline checkpoint."""
+"""Load the repository-local LLaDA runtime and original offline checkpoint."""
 import importlib,os,sys
 from pathlib import Path
 MODEL_ID="GSAI-ML/LLaDA-8B-Instruct"
@@ -17,10 +17,10 @@ def snapshot():
     return path
 
 def load_external():
-    # Preserve original module ABI while keeping descriptive public filenames.
+    # Bind repository-local execution modules and reject external conflicts.
     source=ROOT/"relay_cache/llada/model"
     parent=source.parent
-    for name in ("model","flash_cache_triton","_relay_decoder"):
+    for name in ("model","_relay_llada_kernels","_relay_decoder"):
         module=sys.modules.get(name)
         if module is not None:
             locations=[getattr(module,"__file__",None),*getattr(module,"__path__",[])]
@@ -33,11 +33,11 @@ def load_external():
             try:spec.loader.exec_module(module)
             except BaseException:sys.modules.pop(name,None);raise
         return sys.modules[name]
-    pinned_module('flash_cache_triton',source/'kernels.py')
+    pinned_module('_relay_llada_kernels',source/'kernels.py')
     if str(parent) not in sys.path:sys.path.insert(0,str(parent))
     model=importlib.import_module('model.modeling_llada')
     decoder=pinned_module('_relay_decoder',source/'decoder.py')
-    return model.LLaDAModelLM,decoder.generate_with_Flash_dLLM
+    return model.LLaDAModelLM,decoder.generate
 
 
 def load_model():

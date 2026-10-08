@@ -21,7 +21,6 @@ import torch.nn.functional as F
 import os
 from transformers import AutoTokenizer, AutoModel
 from model.modeling_llada import LLaDAModelLM
-# from elastic_cache_triton import get_rotary_embedding, _init_block_table, _update_block_table
 import math
 import triton
 import triton.language as tl
@@ -59,7 +58,7 @@ def make_blocks(j: int, seqlen_k, max_length, start_m: int, end_m: int, block_m:
 
 
 @ torch.no_grad()
-def generate_with_Flash_dLLM(model, prompts, prompt_lengths, batch_size, responses, n_steps, steps=128, gen_length=128, block_length=128, temperature=0.,
+def generate(model, prompts, prompt_lengths, batch_size, responses, n_steps, steps=128, gen_length=128, block_length=128, temperature=0.,
             remasking='low_confidence', mask_id=126336, threshold=0.9, track_num=4, mask_num=4, eos_id=126081, sliding_window=True, is_instruct=True, tokenizer=None, stop_tokens=None):
     '''
     Args:

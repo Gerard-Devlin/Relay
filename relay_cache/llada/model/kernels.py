@@ -13,7 +13,7 @@ import torch.nn as nn
 
 
 @triton.jit
-def _flash_qkv_proj_cache_fwd(
+def _qkv_rope_cache_fwd(
     Xn, Q, # (acc_q_len, d_model)
     K, V, # (acc_k_len, d_model)
     Pos, # (acc_q_len, d_model)
@@ -101,7 +101,7 @@ def _flash_qkv_proj_cache_fwd(
 
 
 @triton.jit
-def _flash_masked_attention_fwd(
+def _masked_attention_fwd(
     Q, O, # (acc_q_len, d_model)
     K, V, # (acc_k_len, d_model)
     S, # (batch, heads, block_m, max_k_length)
@@ -134,7 +134,7 @@ def _flash_masked_attention_fwd(
     offs_k = (offs_n[None, :] + start_n) * D_MODEL + offs_h[:, None]
     offs_v = (offs_n[:, None] + start_n) * D_MODEL + offs_h[None, :]
     
-    # Flash Elastic-Cache Attention
+    # Cached tiled attention
     lse_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     acc_o = tl.zeros([BLOCK_M, HEAD_DIM], dtype=tl.float32)
@@ -178,7 +178,7 @@ def _flash_masked_attention_fwd(
 
 
 @triton.jit
-def _flash_tracked_attention_fwd(
+def _tracked_attention_fwd(
     Q, O, # (acc_q_len, d_model)
     K, V, # (acc_k_len, d_model)
     block_table,
@@ -214,7 +214,7 @@ def _flash_tracked_attention_fwd(
     offs_k = (offs_n[None, :] + start_n) * D_MODEL + offs_h[:, None]
     offs_v = (offs_n[:, None] + start_n) * D_MODEL + offs_h[None, :]
     
-    # Flash Elastic-Cache Attention
+    # Cached tiled attention
     lse_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     acc_o = tl.zeros([BLOCK_M, HEAD_DIM], dtype=tl.float32)
@@ -287,7 +287,7 @@ def make_blocks(j: int, start_m: int, end_m: int, block_m: int, device=None):
     return torch.stack((batch, starts, ends), dim=1)
 
 
-def flash_fused_elastic_cache(
+def fused_cache_attention(
     self, x: torch.Tensor, block_idx, positions, lengths,
     softmax_scale: float = None,
 ):
@@ -336,7 +336,7 @@ def flash_fused_elastic_cache(
         num_blocks = query_blocks.shape[0]
 
         grid = (num_blocks, n_heads)
-        _flash_qkv_proj_cache_fwd[grid](
+        _qkv_rope_cache_fwd[grid](
             x_normed, q, self.k_cache, self.v_cache, query_pos_flat, query_blocks,
             self.q_proj.weight, self.k_proj.weight, self.v_proj.weight,
             rotary_emb_pos[0], rotary_emb_pos[1],
@@ -354,7 +354,7 @@ def flash_fused_elastic_cache(
         num_warps = 4
         num_stages = 2
         grid = (query_masked_blocks.shape[0], n_heads)
-        _flash_masked_attention_fwd[grid](
+        _masked_attention_fwd[grid](
             q, att, self.k_cache, self.v_cache, S,
             stride_sm, stride_sh, stride_sb,
             query_masked_blocks,
@@ -384,7 +384,7 @@ def flash_fused_elastic_cache(
         num_blocks = query_tracked_blocks.shape[0]
 
         grid = (num_blocks, n_heads)
-        _flash_tracked_attention_fwd[grid](
+        _tracked_attention_fwd[grid](
             q, att, self.k_cache, self.v_cache,
             query_tracked_blocks,
             softmax_scale,
