@@ -49,3 +49,23 @@ SOFTWARE.
 ```
 
 </details>
+
+
+## LLaDA-V integration
+
+`relay_cache/lladav/model/` contains inference components adapted from
+[LLaDA-V](https://github.com/ML-GSAI/LLaDA-V) and LLaVA. The original Apache-2.0
+headers of Haotian Liu, Zebin You, EleutherAI and the Hugging Face team are
+retained. Imports have been relocated and unused training, competing samplers,
+vision backends and task heads omitted. The SigLip component retains its
+upstream attribution to the MILVLG/imp vision encoder. The visual decoder uses
+Relay's existing cache policy and execution components; image processing and
+native first-pass cache initialization follow the historical visual run.
+
+Visual query formatters and answer-extraction/normalization templates in
+`dllm-eval/dllm_eval/vendor/` are adapted from the MathVista and MathVerse
+evaluators bundled by LLaDA-V. Thanks to the authors of both benchmarks and
+their evaluation tools. The API adapter uses DeepSeek Flash, so the released
+visual numbers are proxy-judge results, not the benchmarks' official GPT-4o
+scores. Model weights, images, questions, answer keys and judge responses are
+not redistributed in this repository.

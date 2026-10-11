@@ -14,6 +14,11 @@ dependencies = ["torch", "transformers", "huggingface-hub", "numpy", "tqdm", "tr
 [project.optional-dependencies]
 data = ["datasets", "lm_eval==0.4.8", "pyyaml"]
 
+vision = ["Pillow==11.3.0", "torchvision==0.22.1", "accelerate==0.34.2", "sentencepiece==0.2.2", "protobuf==7.35.1", "pyarrow==25.0.0", "requests==2.34.2"]
+
 [tool.setuptools]
-packages = ["relay_cache", "relay_cache.llada", "relay_cache.llada.model", "relay_cache.dream", "dllm_eval", "dllm_eval.vendor"]
+packages = ["relay_cache", "relay_cache.llada", "relay_cache.llada.model", "relay_cache.dream","relay_cache.lladav","relay_cache.lladav.model", "dllm_eval", "dllm_eval.vendor"]
 package-dir = {relay_cache = "relay_cache", dllm_eval = "dllm-eval/dllm_eval"}
+
+[tool.setuptools.package-data]
+"relay_cache.lladav.model" = ["config.json"]

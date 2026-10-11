@@ -1,0 +1,12 @@
+{
+  "python": "3.11.15",
+  "packages": {
+    "Pillow": "11.3.0",
+    "torchvision": "0.22.1+cu128",
+    "accelerate": "0.34.2",
+    "requests": "2.34.2",
+    "sentencepiece": "0.2.2",
+    "protobuf": "7.35.1",
+    "pyarrow": "25.0.0"
+  }
+}

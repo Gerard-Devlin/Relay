@@ -1,0 +1,47 @@
+{
+  "status": "passed",
+  "date": "2026-10-11",
+  "profile": "Historical full-evaluated LLaDA-V Relay; no retuning",
+  "llada_implementation_files_unchanged": true,
+  "dream_implementation_files_unchanged": true,
+  "historical_result_files_unchanged": true,
+  "algorithm_function_ast_unchanged": true,
+  "paired_gpu": {
+    "requests": 16,
+    "cells": 4,
+    "matched": [
+      "token_ids",
+      "text",
+      "nfe",
+      "iterations",
+      "actual_row_layers",
+      "boundary_bytes",
+      "native_priming_layers",
+      "step_actions"
+    ],
+    "historical_records_identical": true,
+    "hardware": "Single RTX 5090; old/new run serially",
+    "purpose": "Migration equivalence check, not a speed or task-quality experiment"
+  },
+  "cpu_tests": {
+    "passed": 155
+  },
+  "wheel_build": true,
+  "data": {
+    "prompts": 3364,
+    "images_and_order_identical": true
+  },
+  "saved_output_scoring": {
+    "records": 6728,
+    "extractions_predictions_and_correctness_identical": true,
+    "new_api_requests": 0
+  },
+  "evaluation_entry_smoke": {
+    "formal_requests": 1,
+    "startup_warmups": 2,
+    "historical_output_identical": true,
+    "peak_memory_recorded": true,
+    "single_block_progress_log": true
+  },
+  "limits": "Finite regression checks; no full benchmark rerun and no claim of all-input or native-model equivalence"
+}

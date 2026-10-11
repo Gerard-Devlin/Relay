@@ -1,0 +1,37 @@
+{
+  "status": "complete",
+  "scope": "Historical full-evaluated Relay visual profile; aggregate results, not migration regression",
+  "generated": 6728,
+  "cells": {
+    "mathvista_256": {
+      "samples": 1000,
+      "correct": 540,
+      "accuracy_percent": 54.0,
+      "mean_seconds": 6.215756409418769,
+      "mean_prepare_seconds": 0.1447377994246781
+    },
+    "mathvista_512": {
+      "samples": 1000,
+      "correct": 511,
+      "accuracy_percent": 51.1,
+      "mean_seconds": 9.823255106783472,
+      "mean_prepare_seconds": 0.13936390872858465
+    },
+    "mathverse_256": {
+      "samples": 2364,
+      "correct": 541,
+      "accuracy_percent": 22.884940778341793,
+      "mean_seconds": 6.38102960298287,
+      "mean_prepare_seconds": null
+    },
+    "mathverse_512": {
+      "samples": 2364,
+      "correct": 480,
+      "accuracy_percent": 20.304568527918782,
+      "mean_seconds": 9.967700181736937,
+      "mean_prepare_seconds": null
+    }
+  },
+  "metric": "DeepSeek Flash extraction / judging with pinned MathVista normalization and MathVerse prompts; not official GPT-4o scores",
+  "timing": "Warmed prepared-prompt decoder request time; model load, image preparation/vision encoding, scoring and writing excluded"
+}

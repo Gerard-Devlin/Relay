@@ -1,0 +1,47 @@
+{
+  "settings": {
+    "model": "GSAI-ML/LLaDA-V",
+    "revision": "a10ba1790083e10e07cfcab6e7be93e1823f5792",
+    "vision_model": "google/siglip2-so400m-patch14-384",
+    "vision_revision": "e8e487298228002f3d8a82e0cd5c8ea9c567f57f",
+    "precision": "BF16 parameters / FP32 RoPE frequencies",
+    "block": 32,
+    "threshold": 0.9,
+    "gamma": 0.8,
+    "track": 4,
+    "mask": 4,
+    "history_budget": 128,
+    "stripe_width": 8,
+    "seed": 51713,
+    "lengths": [
+      256,
+      512
+    ],
+    "verify": false,
+    "native_visual_priming": true,
+    "conversation": "llava_llada",
+    "prompt_suffix": " /think",
+    "scoring": "deepseek-flash-saved-output-v1"
+  },
+  "datasets": {
+    "mathvista": {
+      "repo": "AI4Math/MathVista",
+      "revision": "2b6ad69445fbb5695c9b165475e8decdbeb97747",
+      "split": "testmini",
+      "samples": 1000
+    },
+    "mathverse": {
+      "repo": "CaraJ/MathVerse-lmmseval",
+      "revision": "8479d5e87785a3274da612e169d942c3d972b7fe",
+      "split": "testmini",
+      "versions": [
+        "vision_dominant",
+        "vision_intensive",
+        "vision_only"
+      ],
+      "samples": 2364
+    }
+  },
+  "measurement": "two excluded warmup requests at worker startup; one formal generation per sample",
+  "score": "DeepSeek Flash proxy; not official GPT-4o results"
+}
