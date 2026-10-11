@@ -7,11 +7,7 @@
 [![Code](https://img.shields.io/badge/Code-GitHub-181717?logo=github)](https://github.com/Gerard-Devlin/Relay)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**LLaDA · DREAM · LLaDA-V**
-
 </div>
-
-[Highlights](#highlights) · [Motivation & Method](#motivation--method) · [Installation](#installation) · [Quickstart](#quickstart) · [Evaluation](#evaluation) · [Results](#results) · [Acknowledgments](#acknowledgments)
 
 ## Highlights
 
@@ -143,34 +139,6 @@ python -m dllm_eval.visual_score --run runs/lladav --data-root data/visual \
 Visual scores use **DeepSeek Flash** for extraction/judging with MathVista normalization and MathVerse evaluation prompts. This is a proxy evaluation, not the official GPT-4o score. Saved outputs can be rescored without rerunning the model.
 
 Evaluation workers warm up on two requests at startup, then generate once per formal question. Logs with block progress bars are saved under `log/`. Use `--resume` to continue a matching run; `--help` lists task, length, and shard options.
-
-## Results
-
-Reported full-evaluation results on **RTX 5090**. Accuracy and mean request time are listed separately. Time is measured after warmup for prepared-prompt decoding, including cache priming; model loading, prompt/image preparation, vision encoding, scoring, and file writing are excluded.
-
-### LLaDA-8B-Instruct
-
-| Benchmark | Gen. length | Acc (%) | Time (s) |
-|---|---:|---:|---:|
-| GSM8K (5-shot) | 256 | 77.559 | 2.276 |
-| GSM8K (5-shot) | 512 | 75.057 | 2.746 |
-| MATH (4-shot) | 256 | 38.020 | 3.050 |
-| MATH (4-shot) | 512 | 41.980 | 4.389 |
-| HumanEval (0-shot) | 256 | 41.463 | 1.752 |
-| HumanEval (0-shot) | 512 | 45.122 | 4.600 |
-| MBPP (3-shot) | 256 | 38.600 | 0.957 |
-| MBPP (3-shot) | 512 | 39.400 | 1.840 |
-
-### LLaDA-V
-
-| Benchmark | Gen. length | Correct / total | Acc (%) | Time (s) |
-|---|---:|---:|---:|---:|
-| MathVista | 256 | 540 / 1000 | 54.000 | 6.216 |
-| MathVista | 512 | 511 / 1000 | 51.100 | 9.823 |
-| MathVerse | 256 | 541 / 2364 | 22.885 | 6.381 |
-| MathVerse | 512 | 480 / 2364 | 20.305 | 9.968 |
-
-Full aggregate records: [LLaDA](dllm-eval/results/historical/final_verified.json), [LLaDA-V](dllm-eval/results/historical/lladav.json), and [128-question validation](dllm-eval/results/historical/validation128.json).
 
 ## Acknowledgments
 
