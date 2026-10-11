@@ -1,0 +1,268 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1670" height="580" viewBox="0 0 1670 580" role="img" aria-labelledby="title desc">
+<title id="title">RelayCache: identity-aware cross-step history refresh</title>
+<desc id="desc">Full-depth history refresh is compared with RelayCache. Current masked and identity-changed rows execute all layers; selected unchanged history executes the rotating eight-layer stripe; unselected context retains its KV. After full initialization, saved boundary hidden states supply subsequent stripes. Two history columns illustrate a repeatedly selected unchanged cohort, not a guarantee of persistent membership. Cached context remains readable at all layers. This schematic makes no native-equivalence or measured-speed claim.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 L2 5Z" fill="#181818"/></marker>
+<marker id="relay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#ca67cb"/></marker>
+</defs>
+<style>text{font-family:'Times New Roman',Times,serif;fill:#181818;font-size:21px}path,line,rect{stroke-linecap:round;stroke-linejoin:round}</style>
+<rect width="1670" height="580" fill="white"/>
+
+<g id="full-depth-reference">
+<text x="42" y="85" text-anchor="middle" style="font-size:19px">Layers</text>
+<text x="73" y="137" text-anchor="end" style="font-size:22px">1–8</text>
+<text x="73" y="195" text-anchor="end" style="font-size:22px">9–16</text>
+<text x="73" y="253" text-anchor="end" style="font-size:22px">17–24</text>
+<text x="73" y="311" text-anchor="end" style="font-size:22px">25–32</text>
+<text x="158" y="40" text-anchor="middle" style="font-size:25px">Step t</text>
+<text x="116" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="179" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="98" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="140" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="182" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="98" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="140" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="182" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="98" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="140" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="182" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="98" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="140" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="182" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<text x="312" y="40" text-anchor="middle" style="font-size:25px">Step t+1</text>
+<text x="270" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="333" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="252" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="294" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="336" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="252" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="294" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="336" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="252" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="294" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="336" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="252" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="294" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="336" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<path d="M 223 214 H 246" fill="none" stroke="#181818" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text x="200" y="397" text-anchor="middle" style="font-size:20px">Per-step row × layer work</text>
+<text x="200" y="435" text-anchor="middle" style="font-size:28px;font-style:italic">32 (M + D + H)</text>
+<text x="200" y="521" text-anchor="middle" style="font-size:25px">(a) Full-depth refresh</text>
+</g>
+<line x1="390" y1="18" x2="390" y2="525" stroke="#181818" stroke-width="1.8" stroke-dasharray="1 5"/>
+<g id="identity-aware-routing">
+<text x="451" y="40" text-anchor="middle" style="font-size:20px">MASK</text>
+<text x="537" y="40" text-anchor="middle" style="font-size:19px">Changed D</text>
+<text x="696" y="40" text-anchor="middle" style="font-size:19px">Unchanged history H</text>
+<rect x="413" y="62" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="431" y="88" text-anchor="middle" style="font-size:25px;font-style:italic">M</text>
+<rect x="457" y="62" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="475" y="88" text-anchor="middle" style="font-size:25px;font-style:italic">M</text>
+<rect x="501" y="62" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="519" y="88" text-anchor="middle" style="font-size:25px;font-style:italic">Δ</text>
+<rect x="545" y="62" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="563" y="88" text-anchor="middle" style="font-size:25px;font-style:italic">Δ</text>
+<rect x="589" y="62" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<path d="M 601 80 L 606 85 L 614 74" fill="none" stroke="#181818" stroke-width="1.8"/>
+<rect x="633" y="62" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<path d="M 645 80 L 650 85 L 658 74" fill="none" stroke="#181818" stroke-width="1.8"/>
+<rect x="677" y="62" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="721" y="62" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<line x1="431" y1="106" x2="431" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="475" y1="106" x2="475" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="519" y1="106" x2="519" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="563" y1="106" x2="563" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="607" y1="106" x2="607" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="651" y1="106" x2="651" y2="167" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="695" y1="106" x2="695" y2="167" stroke="#c3c3c3" stroke-width="1.6" marker-end="url(#arrow)" stroke-dasharray="3 4"/>
+<line x1="739" y1="106" x2="739" y2="167" stroke="#c3c3c3" stroke-width="1.6" marker-end="url(#arrow)" stroke-dasharray="3 4"/>
+<rect x="413" y="181" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="457" y="181" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="501" y="181" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="545" y="181" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="589" y="181" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="633" y="181" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="677" y="181" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="721" y="181" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="413" y="224" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="457" y="224" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="501" y="224" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="545" y="224" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="589" y="224" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="633" y="224" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="677" y="224" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="721" y="224" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="413" y="267" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="457" y="267" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="501" y="267" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="545" y="267" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="589" y="267" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="633" y="267" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="677" y="267" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="721" y="267" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="413" y="310" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="457" y="310" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="501" y="310" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="545" y="310" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="589" y="310" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="633" y="310" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="677" y="310" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="721" y="310" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<path d="M 413 354 V 359 H 581 V 354" fill="none" stroke="#181818" stroke-width="1.2"/>
+<path d="M 589 354 V 359 H 669 V 354" fill="none" stroke="#181818" stroke-width="1.2"/>
+<path d="M 677 354 V 359 H 757 V 354" fill="none" stroke="#181818" stroke-width="1.2"/>
+<text x="497" y="383" text-anchor="middle" style="font-size:21px">Full depth</text>
+<text x="629" y="383" text-anchor="middle" style="font-size:19px">One stripe</text>
+<text x="717" y="383" text-anchor="middle" style="font-size:19px">KV only</text>
+<text x="600" y="424" text-anchor="middle" style="font-size:22px;font-style:italic">Bᴴ = max(0, 128 − |D|)</text>
+<text x="600" y="465" text-anchor="middle" style="font-size:27px;font-style:italic">32 (M + D) + 8H</text>
+<text x="600" y="521" text-anchor="middle" style="font-size:25px">(b) Guarded history selection</text>
+</g>
+<line x1="815" y1="18" x2="815" y2="525" stroke="#181818" stroke-width="1.8" stroke-dasharray="1 5"/>
+<g id="relay-schedule">
+<text x="859" y="85" text-anchor="middle" style="font-size:19px">Layers</text>
+<text x="898" y="137" text-anchor="end" style="font-size:22px">1–8</text>
+<text x="898" y="195" text-anchor="end" style="font-size:22px">9–16</text>
+<text x="898" y="253" text-anchor="end" style="font-size:22px">17–24</text>
+<text x="898" y="311" text-anchor="end" style="font-size:22px">25–32</text>
+<text x="980" y="40" text-anchor="middle" style="font-size:25px">Step t</text>
+<text x="938" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="1001" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="920" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="962" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1004" y="112" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="920" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="962" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1004" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="920" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="962" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1004" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="920" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="962" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1004" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<path d="M 962 152 H 1024 C 1034 152 1036 158 1048 158 H 1054" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<rect x="1060" y="145" width="39" height="26" rx="4" fill="white" stroke="#ca67cb" stroke-width="1.2"/>
+<text x="1079" y="164" text-anchor="middle" style="font-size:22px;font-style:italic">h<tspan baseline-shift="sub" font-size="14">8</tspan></text>
+<path d="M 1101 158 C 1118 158 1119 164 1133 164 H 1140" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<text x="1157" y="40" text-anchor="middle" style="font-size:25px">Step t+1</text>
+<text x="1115" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="1178" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="1097" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1139" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1181" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1097" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1139" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1181" y="170" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1097" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1139" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1181" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1097" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1139" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1181" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<path d="M 1139 210 H 1201 C 1211 210 1213 216 1225 216 H 1231" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<rect x="1237" y="203" width="39" height="26" rx="4" fill="white" stroke="#ca67cb" stroke-width="1.2"/>
+<text x="1256" y="222" text-anchor="middle" style="font-size:22px;font-style:italic">h<tspan baseline-shift="sub" font-size="14">16</tspan></text>
+<path d="M 1278 216 C 1295 216 1296 222 1310 222 H 1317" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<text x="1334" y="40" text-anchor="middle" style="font-size:25px">Step t+2</text>
+<text x="1292" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="1355" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="1274" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1316" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1358" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1274" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1316" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1358" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1274" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1316" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1358" y="228" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1274" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1316" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1358" y="286" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<path d="M 1316 268 H 1378 C 1388 268 1390 274 1402 274 H 1408" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<rect x="1414" y="261" width="39" height="26" rx="4" fill="white" stroke="#ca67cb" stroke-width="1.2"/>
+<text x="1433" y="280" text-anchor="middle" style="font-size:22px;font-style:italic">h<tspan baseline-shift="sub" font-size="14">24</tspan></text>
+<path d="M 1455 274 C 1472 274 1473 280 1487 280 H 1494" fill="none" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<text x="1511" y="40" text-anchor="middle" style="font-size:25px">Step t+3</text>
+<text x="1469" y="85" text-anchor="middle" style="font-size:19px">Live</text>
+<text x="1532" y="85" text-anchor="middle" style="font-size:19px">History</text>
+<rect x="1451" y="112" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1493" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1535" y="112" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1451" y="170" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1493" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1535" y="170" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1451" y="228" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1493" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1535" y="228" width="36" height="36" rx="5" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1451" y="286" width="36" height="36" rx="5" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1493" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1535" y="286" width="36" height="36" rx="5" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="859" y="349" width="767" height="143" rx="12" fill="white" stroke="#181818" stroke-width="1.2" stroke-dasharray="1 4"/>
+<text x="942" y="373" text-anchor="middle" style="font-size:20px">Stripe 9–16</text>
+<rect x="891" y="386" width="22" height="22" rx="4" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="919" y="386" width="22" height="22" rx="4" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="944" y="403" text-anchor="start" style="font-size:18px">Live</text>
+<rect x="889" y="440" width="51" height="32" rx="5" fill="white" stroke="#ca67cb" stroke-width="1.3"/>
+<text x="914" y="464" text-anchor="middle" style="font-size:22px;font-style:italic">h<tspan baseline-shift="sub" font-size="14">8</tspan></text>
+<path d="M 917 412 V 431 H 971 V 450" fill="none" stroke="#181818" stroke-width="1.8" marker-end="url(#arrow)"/>
+<path d="M 944 456 H 984" fill="none" stroke="#ca67cb" stroke-width="2" marker-end="url(#relay)"/>
+<rect x="990" y="440" width="87" height="32" rx="5" fill="#e0f1f7" stroke="#181818" stroke-width="1.2"/>
+<text x="1033" y="463" text-anchor="middle" style="font-size:20px">QKV</text>
+<line x1="1081" y1="456" x2="1135" y2="456" stroke="#181818" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="1140" y="440" width="118" height="32" rx="5" fill="#e0f1f7" stroke="#181818" stroke-width="1.2"/>
+<text x="1199" y="463" text-anchor="middle" style="font-size:20px">Attention</text>
+<line x1="1262" y1="456" x2="1317" y2="456" stroke="#181818" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="1322" y="440" width="83" height="32" rx="5" fill="#e0f1f7" stroke="#181818" stroke-width="1.2"/>
+<text x="1363" y="463" text-anchor="middle" style="font-size:20px">FFN</text>
+<line x1="1409" y1="456" x2="1465" y2="456" stroke="#ca67cb" stroke-width="2.2" marker-end="url(#relay)"/>
+<rect x="1471" y="440" width="61" height="32" rx="5" fill="white" stroke="#ca67cb" stroke-width="1.3"/>
+<text x="1501" y="464" text-anchor="middle" style="font-size:22px;font-style:italic">h<tspan baseline-shift="sub" font-size="14">16</tspan></text>
+<text x="1562" y="462" text-anchor="middle" style="font-size:18px">Save</text>
+<path d="M 990 476 V 484 H 1180" fill="none" stroke="#181818" stroke-width="1"/>
+<path d="M 1225 484 H 1405 V 476" fill="none" stroke="#181818" stroke-width="1"/>
+<text x="1202" y="489" text-anchor="middle" style="font-size:17px">×8</text>
+<text x="1443" y="373" text-anchor="middle" style="font-size:20px">Layer ℓ KV</text>
+<text x="1588" y="398" text-anchor="middle" style="font-size:17px">K</text>
+<rect x="1311" y="381" width="21" height="21" rx="3" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1337" y="381" width="21" height="21" rx="3" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1363" y="381" width="21" height="21" rx="3" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1389" y="381" width="21" height="21" rx="3" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1415" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1441" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1467" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1493" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1519" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1545" y="381" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<text x="1588" y="424" text-anchor="middle" style="font-size:17px">V</text>
+<rect x="1311" y="407" width="21" height="21" rx="3" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1337" y="407" width="21" height="21" rx="3" fill="#43afd5" stroke="none" stroke-width="0"/>
+<rect x="1363" y="407" width="21" height="21" rx="3" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1389" y="407" width="21" height="21" rx="3" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<rect x="1415" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1441" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1467" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1493" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1519" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<rect x="1545" y="407" width="21" height="21" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<path d="M 1050 436 V 391 H 1304" fill="none" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M 1293 391 V 417 H 1304" fill="none" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="1173" y="383" text-anchor="middle" style="font-size:18px">Write selected</text>
+<path d="M 1311 430 V 433 H 1566 V 430" fill="none" stroke="#181818" stroke-width="1.2"/>
+<path d="M 1311 433 C 1273 433 1248 416 1225 416 H 1207 Q 1199 416 1199 424 V 435" fill="none" stroke="#181818" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="1257" y="405" text-anchor="middle" style="font-size:18px">Read all</text>
+<text x="1235" y="521" text-anchor="middle" style="font-size:25px;font-weight:bold">(c) RelayCache</text>
+</g>
+<g id="legend">
+<rect x="23" y="539" width="1624" height="33" rx="8" fill="white" stroke="#181818" stroke-width="1.4" stroke-dasharray="1 4"/>
+<rect x="48" y="546" width="19" height="19" rx="3" fill="#43afd5" stroke="none" stroke-width="0"/>
+<text x="78" y="563" text-anchor="start" style="font-size:20px">Full-depth computation</text>
+<rect x="339" y="546" width="19" height="19" rx="3" fill="#f2aa83" stroke="none" stroke-width="0"/>
+<text x="369" y="563" text-anchor="start" style="font-size:20px">History refresh</text>
+<rect x="548" y="546" width="19" height="19" rx="3" fill="#c3c3c3" stroke="none" stroke-width="0"/>
+<text x="578" y="563" text-anchor="start" style="font-size:20px">Cached KV</text>
+<line x1="740" y1="556" x2="780" y2="556" stroke="#ca67cb" stroke-width="2.4" marker-end="url(#relay)"/>
+<text x="793" y="563" text-anchor="start" style="font-size:20px">Boundary state</text>
+<text x="1021" y="563" text-anchor="start" style="font-size:20px">Live: MASK / changed token</text>
+<text x="1460" y="563" text-anchor="middle" style="font-size:19px">Depth grids: 8 layers / square</text>
+</g>
+</svg>

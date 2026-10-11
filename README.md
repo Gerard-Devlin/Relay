@@ -1,26 +1,39 @@
+<div align="center">
+
 # RelayCache
 
-RelayCache refreshes selected history tokens through a rotating layer stripe, retaining boundary hidden states between denoising steps. Active prediction tokens and tokens whose identities changed still traverse the full network. It is a training-free, approximate cache method; it does not claim equivalence to uncached native inference. Flash-Verify is disabled.
+**Training-free acceleration of diffusion language models through cross-step context relay.**
 
-## Repository
+[![Code](https://img.shields.io/badge/Code-GitHub-181717?logo=github)](https://github.com/Gerard-Devlin/Relay)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-```text
-relay_cache/
-  llada/     # Original language-only Relay implementation
-  dream/     # DREAM integration with shifted readout and grouped-head KV
-  lladav/    # Historical, full-evaluated LLaDA-V integration
-dllm-eval/
-  configs/   # Fixed reproduction profiles and environment
-  dllm_eval/ # Data preparation, evaluation, saved-output scoring
-  tests/
-  results/   # Aggregate historical results and migration checks
-```
+**LLaDA · DREAM · LLaDA-V**
 
-The LLaDA-V release preserves the previous full-evaluation profile, including native visual cache priming, image preprocessing, token restrictions and stopping. Later parameter searches and ablations are not included. The existing LLaDA and DREAM implementation files are unchanged by this release.
+</div>
+
+[Highlights](#highlights) · [Motivation & Method](#motivation--method) · [Installation](#installation) · [Quickstart](#quickstart) · [Evaluation](#evaluation) · [Results](#results) · [Acknowledgments](#acknowledgments)
+
+## Highlights
+
+- **Cross-step context relay.** Refresh selected history through a rotating layer stripe, and carry boundary hidden states into subsequent denoising steps.
+- **Identity-aware history management.** Keep active prediction tokens and tokens whose identities changed on the full-depth path, while budgeting updates to unchanged history.
+- **Language and vision support.** Separate integrations for LLaDA-8B-Instruct, DREAM-v0-Instruct-7B, and LLaDA-V, with generation and evaluation entry points for each model.
+
+## Motivation & Method
+
+<p align="center">
+  <img src="assets/relaycache_teaser.svg" width="100%" alt="RelayCache: full-depth refresh, guarded history selection, and cross-step layer-stripe relay.">
+</p>
+
+Diffusion decoding repeatedly revisits the same context. Even when only a subset of tokens is recomputed, refreshing every selected history row through the entire network remains expensive.
+
+RelayCache distributes this history work across denoising steps. Selected unchanged history traverses a contiguous layer stripe; its boundary hidden state is saved so a later stripe can resume from it. Other layers reuse cached KV, and prediction tokens continue to read the context cache at every layer. Active and identity-changed tokens still execute the full network.
+
+The released profiles use **8-layer stripes** and a **128-token history budget**. RelayCache is an approximate caching method and can change the decoding trajectory.
 
 ## Installation
 
-Use Linux, an NVIDIA GPU with sufficient free memory, and the captured Python 3.11.15 environment. Reuse that environment when available:
+Use Linux, an NVIDIA GPU, and the recorded Python 3.11 environment. If the evaluation dependencies are already installed:
 
 ```bash
 git clone https://github.com/Gerard-Devlin/Relay.git
@@ -28,80 +41,139 @@ cd Relay
 pip install -e . --no-deps
 ```
 
-For a fresh Python environment:
+To install the recorded dependencies first:
 
 ```bash
-pip install -r dllm-eval/configs/requirements-reproduction.txt --extra-index-url https://download.pytorch.org/whl/cu128
+pip install -r dllm-eval/configs/requirements-reproduction.txt \
+  --extra-index-url https://download.pytorch.org/whl/cu128
 pip install -e . --no-deps
 ```
 
-Runs check the captured dependency versions. Model weights and datasets are not distributed here.
+### Supported models
 
-| Model | Checkpoint revision | Profile |
+| Model | Implementation | Reproduction profile |
 |---|---|---|
-| GSAI-ML/LLaDA-8B-Instruct | `08b83a6feb34df1a6011b80c3c00c7563e963b07` | `dllm-eval/configs/reproduction.json` |
-| Dream-org/Dream-v0-Instruct-7B | `05334cb9faaf763692dcf9d8737c642be2b2a6ae` | `dllm-eval/configs/dream.json` |
-| GSAI-ML/LLaDA-V | `a10ba1790083e10e07cfcab6e7be93e1823f5792` | `dllm-eval/configs/lladav.json` |
+| [LLaDA-8B-Instruct](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct) | [`relay_cache/llada/`](relay_cache/llada/) | [LLaDA](dllm-eval/configs/reproduction.json) |
+| [DREAM-v0-Instruct-7B](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B) | [`relay_cache/dream/`](relay_cache/dream/) | [DREAM](dllm-eval/configs/dream.json) |
+| [LLaDA-V](https://huggingface.co/GSAI-ML/LLaDA-V) | [`relay_cache/lladav/`](relay_cache/lladav/) | [LLaDA-V](dllm-eval/configs/lladav.json) |
 
-LLaDA-V also requires `google/siglip2-so400m-patch14-384` at `e8e487298228002f3d8a82e0cd5c8ea9c567f57f`. Its checkpoint-tuned vision weights are loaded from LLaDA-V. Language parameters are shared with the Relay execution view; no extra LLaDA checkpoint download is required for visual generation.
+Fixed parameters and dependency versions are specified in these profiles and the [language](dllm-eval/configs/environment.json) / [vision](dllm-eval/configs/lladav_environment.json) environment records. Each model integration loads a pinned checkpoint revision; keep those snapshots in your Hugging Face hub cache. LLaDA-V also needs the SigLIP2 snapshot specified in its profile; the visual data command below can download both.
 
-All profiles use BF16 weights, block size 32, confidence threshold 0.90, track/mask counts 4, stripe width 8, history budget 128, seed 51713, and generation lengths 256/512. LLaDA-V retains FP32 RoPE frequencies and the original `llava_llada` conversation with the ` /think` suffix. Configuration changes are rejected by the reproduction entry points.
+## Quickstart
 
-## Generate
+Set an idle physical GPU index (or UUID) and your checkpoint cache:
 
-`GPU` is an idle physical GPU index or UUID; `HF_CACHE` is the Hugging Face hub cache directory containing the pinned snapshots.
+```bash
+export GPU=0
+export HF_CACHE="$HOME/.cache/huggingface/hub"
+```
+
+**LLaDA**
 
 ```bash
 python -m relay_cache --model llada --gpu "$GPU" --hf-hub-cache "$HF_CACHE" \
   --prompt 'What is 12 multiplied by 13?' --length 256 --output runs/llada.json
-
-python -m relay_cache --model dream --gpu "$GPU" --hf-hub-cache "$HF_CACHE" \
-  --prompt 'What is 12 multiplied by 13?' --length 256 --output runs/dream.json
-
-python -m relay_cache.lladav --gpu "$GPU" --hf-hub-cache "$HF_CACHE" \
-  --image example.png --prompt 'Solve the problem in this image.' --length 256 --output runs/lladav.json
 ```
 
-## Reproduce the evaluations
-
-For LLaDA and DREAM, export the four text datasets with `dllm_eval.prepare_gsm8k`, `dllm_eval.prepare_humaneval`, and `dllm_eval.prepare_tasks` (see each command's `--help`). The fixed profiles expect GSM8K 5-shot, MATH 4-shot, HumanEval 0-shot and MBPP 3-shot, with 1,319/5,000/164/500 questions respectively.
+**DREAM**
 
 ```bash
-python -m dllm_eval.run --model llada --data-root "$TEXT_DATA" \
+python -m relay_cache --model dream --gpu "$GPU" --hf-hub-cache "$HF_CACHE" \
+  --prompt 'What is 12 multiplied by 13?' --length 256 --output runs/dream.json
+```
+
+**LLaDA-V** — replace `example.png` with your image.
+
+```bash
+python -m relay_cache.lladav --gpu "$GPU" --hf-hub-cache "$HF_CACHE" \
+  --image example.png --prompt 'Solve the problem in this image.' \
+  --length 256 --output runs/lladav.json
+```
+
+## Evaluation
+
+Evaluation code, fixed profiles, and saved results are organized under [`dllm-eval/`](dllm-eval/). The commands below evaluate both generation lengths, **256 and 512**.
+
+### LLaDA and DREAM
+
+Prepare the four benchmarks once:
+
+```bash
+python -m dllm_eval.prepare_gsm8k --output data/text/gsm8k_paper_5shot.json
+python -m dllm_eval.prepare_tasks --task math --output data/text/math_paper_4shot_v2.json
+python -m dllm_eval.prepare_humaneval --output data/text/humaneval_test.json
+python -m dllm_eval.prepare_tasks --task mbpp --output data/text/mbpp_paper_3shot.json
+```
+
+**LLaDA**
+
+```bash
+python -m dllm_eval.run --model llada --data-root data/text \
   --hf-hub-cache "$HF_CACHE" --gpu "$GPU" --output runs/llada
-python -m dllm_eval.run --model dream --data-root "$TEXT_DATA" \
+```
+
+**DREAM**
+
+```bash
+python -m dllm_eval.run --model dream --data-root data/text \
   --hf-hub-cache "$HF_CACHE" --gpu "$GPU" --output runs/dream
 ```
 
-For LLaDA-V, `--download` fetches the pinned model, vision tower and dataset splits. Omit it when the snapshots are already cached:
+The text suite uses GSM8K **5-shot**, MATH **4-shot**, HumanEval **0-shot**, and MBPP **3-shot**. Scoring uses GSM8K answer matching, `final-expression-v3` with Math-Verify 0.1.0 for MATH, and execution-based checks for code tasks.
+
+### LLaDA-V
+
+Prepare MathVista and MathVerse, then generate:
 
 ```bash
 python -m dllm_eval.visual_data --download --hf-hub-cache "$HF_CACHE" --output data/visual
 python -m dllm_eval.visual_run --data-root data/visual --hf-hub-cache "$HF_CACHE" \
   --gpu "$GPU" --output runs/lladav
-export DEEPSEEK_API_KEY=...  # Supply privately; never commit credentials.
-python -m dllm_eval.visual_score --run runs/lladav --data-root data/visual --output runs/lladav_scores
 ```
 
-Visual evaluation uses MathVista `testmini` (1,000 questions) and the three visual MathVerse `testmini` variants (2,364 questions), both zero-shot. Generation receives only the prepared question and RGB image. References are accessed during the separate scoring pass. Raw outputs are retained, so changing a judge does not require generating again.
+Omit `--download` when the pinned snapshots are already cached. The visual suite uses MathVista `testmini` (1,000 questions) and the three visual MathVerse `testmini` variants (2,364 questions), both zero-shot.
 
-Evaluation workers perform two excluded startup warmups and one generation per formal question. Request time includes decoding and cache priming, and excludes model loading, prompt/image preparation, vision encoding, scoring and file I/O. Image preparation time, NFE and peak allocated/reserved memory are recorded separately. Each invocation writes a transcript with block progress bars under `log/`; `--resume` validates the manifest before reusing records. Independent shards can use `--rank` and `--world-size` with distinct output directories.
+Score the saved outputs separately, with `DEEPSEEK_API_KEY` set in your environment:
 
-Text scoring retains the existing GSM8K extraction, `final-expression-v3` / Math-Verify 0.1.0 mathematics policy, and code execution wrappers. Visual scores use the historical **DeepSeek Flash proxy**: MathVista extraction plus original normalization/exact matching; MathVerse last-30-space-separated-word extraction plus equivalence judging. These are **not official GPT-4o scores**. API errors remain pending, and identical requests share cached judge responses. API model changes can affect newly judged scores.
+```bash
+python -m dllm_eval.visual_score --run runs/lladav --data-root data/visual \
+  --output runs/lladav_scores
+```
 
-## Historical visual results
+Visual scores use **DeepSeek Flash** for extraction/judging with MathVista normalization and MathVerse evaluation prompts. This is a proxy evaluation, not the official GPT-4o score. Saved outputs can be rescored without rerunning the model.
 
-These are the saved full-evaluation results, not a new full run during migration. Times are seconds per prepared-prompt request, measured after warmup on RTX 5090.
+Evaluation workers warm up on two requests at startup, then generate once per formal question. Logs with block progress bars are saved under `log/`. Use `--resume` to continue a matching run; `--help` lists task, length, and shard options.
 
-| Dataset | Length | Correct / total | Acc (%) | Time (s) |
+## Results
+
+Reported full-evaluation results on **RTX 5090**. Accuracy and mean request time are listed separately. Time is measured after warmup for prepared-prompt decoding, including cache priming; model loading, prompt/image preparation, vision encoding, scoring, and file writing are excluded.
+
+### LLaDA-8B-Instruct
+
+| Benchmark | Gen. length | Acc (%) | Time (s) |
+|---|---:|---:|---:|
+| GSM8K (5-shot) | 256 | 77.559 | 2.276 |
+| GSM8K (5-shot) | 512 | 75.057 | 2.746 |
+| MATH (4-shot) | 256 | 38.020 | 3.050 |
+| MATH (4-shot) | 512 | 41.980 | 4.389 |
+| HumanEval (0-shot) | 256 | 41.463 | 1.752 |
+| HumanEval (0-shot) | 512 | 45.122 | 4.600 |
+| MBPP (3-shot) | 256 | 38.600 | 0.957 |
+| MBPP (3-shot) | 512 | 39.400 | 1.840 |
+
+### LLaDA-V
+
+| Benchmark | Gen. length | Correct / total | Acc (%) | Time (s) |
 |---|---:|---:|---:|---:|
 | MathVista | 256 | 540 / 1000 | 54.000 | 6.216 |
 | MathVista | 512 | 511 / 1000 | 51.100 | 9.823 |
 | MathVerse | 256 | 541 / 2364 | 22.885 | 6.381 |
 | MathVerse | 512 | 480 / 2364 | 20.305 | 9.968 |
 
-Aggregate records are in [`dllm-eval/results/historical/`](dllm-eval/results/historical/). Migration checks are reported separately under `dllm-eval/results/migration/`; finite checks do not establish equivalence for every input.
+Full aggregate records: [LLaDA](dllm-eval/results/historical/final_verified.json), [LLaDA-V](dllm-eval/results/historical/lladav.json), and [128-question validation](dllm-eval/results/historical/validation128.json).
 
 ## Acknowledgments
 
-We build on [LLaDA](https://github.com/ML-GSAI/LLaDA), [DREAM](https://github.com/DreamLM/Dream), [LLaDA-V](https://github.com/ML-GSAI/LLaDA-V), [LLaVA](https://github.com/haotian-liu/LLaVA), [Flash-dLLM](https://github.com/VILA-Lab/Flash-dLLM), [Fast-dLLM](https://github.com/NVlabs/Fast-dLLM), Transformers and the MathVista/MathVerse evaluation implementations. Adapted execution/model code retains its attribution. See [NOTICE](NOTICE) and [LICENSE](LICENSE) for details.
+We thank the authors of [LLaDA](https://github.com/ML-GSAI/LLaDA), [DREAM](https://github.com/DreamLM/Dream), [LLaDA-V](https://github.com/ML-GSAI/LLaDA-V), [LLaVA](https://github.com/haotian-liu/LLaVA), [Flash-dLLM](https://github.com/VILA-Lab/Flash-dLLM), [Fast-dLLM](https://github.com/NVlabs/Fast-dLLM), [Transformers](https://github.com/huggingface/transformers), [Math-Verify](https://github.com/huggingface/Math-Verify), [MathVista](https://github.com/lupantech/MathVista), and [MathVerse](https://github.com/ZrrSkywalker/MathVerse) for their open-source work.
+
+Adapted components retain their attribution. See [NOTICE](NOTICE) and [LICENSE](LICENSE).
