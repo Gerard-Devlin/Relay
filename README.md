@@ -34,7 +34,7 @@
 ## ✨Highlights
 
 <p align="center">
-  <img src="assets/relaycache_teaser.svg" width="100%" alt="RelayCache: full-depth refresh, guarded history selection, and cross-step layer-stripe relay.">
+  <img src="assets/relaycache_architecture.svg" width="100%" alt="RelayCache architecture: guarded token routing, cross-step context relay, and cached execution.">
 </p>
 
 1. **Cross-step context relay.** Refresh selected history through a rotating layer stripe, and carry boundary hidden states into subsequent denoising steps.

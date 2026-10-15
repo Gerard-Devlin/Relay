@@ -1,0 +1,328 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="7.2in" height="2.89745in" viewBox="0 0 1650 664">
+<title>RelayCache architecture</title>
+<desc>Identity-aware routing sends prediction and changed-identity rows through every layer. Selected unchanged history refreshes one rotating layer segment, using saved same-layer boundary states. All cached keys and values remain readable. Compact prediction projection and confidence decoding commit new identities for the next step. A 32-layer model with eight-layer segments is illustrated after initialization.</desc>
+<defs>
+</defs><style>text{font-family:'Times New Roman',Times,serif;fill:#26343D;font-size:26px}path,line{stroke-linecap:round;stroke-linejoin:round}</style><rect width="1650" height="664" fill="white"/>
+<g id="stage-headings">
+<text id="text1" x="197" y="31" text-anchor="middle" fill="#26343D" style="font-size:29px;fill:#26343D;font-style:normal;font-weight:bold">(a) Guarded token routing</text>
+<text id="text2" x="769" y="31" text-anchor="middle" fill="#26343D" style="font-size:29px;fill:#26343D;font-style:normal;font-weight:bold">(b) Cross-step context relay</text>
+<text id="text3" x="1395" y="31" text-anchor="middle" fill="#26343D" style="font-size:29px;fill:#26343D;font-style:normal;font-weight:bold">(c) Cached execution</text>
+<path id="edge4" d="M 370 23 H 401.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge4-head" points="405,23 398,26.5 398,19.5" fill="#26343D" stroke="none"/>
+<path id="edge5" d="M 1120 23 H 1156.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge5-head" points="1160,23 1153,26.5 1153,19.5" fill="#26343D" stroke="none"/>
+<path id="edge6" d="M 390 55 V 530" fill="none" stroke="#BCC3C7" stroke-width="1.2" stroke-dasharray="2 6"/>
+<path id="edge7" d="M 1148 55 V 530" fill="none" stroke="#BCC3C7" stroke-width="1.2" stroke-dasharray="2 6"/>
+</g>
+<g id="commit-feedback">
+<path id="edge8" d="M 1505 510 V 552 Q 1505 575 1482 575 H 43 Q 20 575 20 552 V 139 Q 20 121 38 121 H 43.8" fill="none" stroke="#26343D" stroke-width="1.7" style="stroke-linecap:butt"/>
+<polygon id="edge8-head" points="47,121 40,124.5 40,117.5" fill="#26343D" stroke="none"/>
+<rect id="box9" x="672" y="558" width="313" height="33" rx="0" fill="white" stroke="none" stroke-width="0"/>
+<text id="text10" x="829" y="582" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:normal;font-weight:normal">Next decoding step</text>
+</g>
+<g id="routing">
+<text id="text11" x="202" y="72" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:italic;font-weight:normal">Current sequence  x<tspan baseline-shift="sub" font-size="17.55">t</tspan></text>
+<text id="text12" x="84" y="99" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Predict</text>
+<text id="text13" x="160" y="99" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Changed</text>
+<text id="text14" x="277" y="99" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">History</text>
+<rect id="box15" x="51" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box16" x="50" y="112" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<text id="text17" x="66.0" y="136.0" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:italic;font-weight:normal">M</text>
+<rect id="box18" x="89" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box19" x="88" y="112" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<text id="text20" x="104.0" y="136.0" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:italic;font-weight:normal">M</text>
+<rect id="box21" x="127" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box22" x="126" y="112" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<text id="text23" x="142.0" y="136.0" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:italic;font-weight:normal">Δ</text>
+<rect id="box24" x="165" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box25" x="164" y="112" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<text id="text26" x="180.0" y="136.0" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:italic;font-weight:normal">Δ</text>
+<rect id="box27" x="203" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box28" x="202" y="112" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box29" x="241" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box30" x="240" y="112" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box31" x="279" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box32" x="278" y="112" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box33" x="317" y="113.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box34" x="316" y="112" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<path id="edge35" d="M 201 151 V 177.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge35-head" points="201,181 197.5,174 204.5,174" fill="#26343D" stroke="none"/>
+<rect id="box36" x="50" y="187" width="300" height="58" rx="9" fill="#F0F6EA" stroke="#26343D" stroke-width="1.5"/>
+<text id="text37" x="200" y="211" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:normal;font-weight:normal">Identity check</text>
+<text id="text38" x="200" y="237" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Budgeted history selection</text>
+<path id="edge39" d="M 84 245 V 255" fill="none" stroke="#26343D" stroke-width="1.8"/>
+<path id="edge40" d="M 84 286 V 303.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge40-head" points="84,307 80.5,300 87.5,300" fill="#26343D" stroke="none"/>
+<path id="edge41" d="M 200 245 V 255" fill="none" stroke="#26343D" stroke-width="1.8"/>
+<path id="edge42" d="M 200 286 V 303.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge42-head" points="200,307 196.5,300 203.5,300" fill="#26343D" stroke="none"/>
+<path id="edge43" d="M 311 245 V 255" fill="none" stroke="#26343D" stroke-width="1.8"/>
+<path id="edge44" d="M 311 286 V 303.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge44-head" points="311,307 307.5,300 314.5,300" fill="#26343D" stroke="none"/>
+<rect id="box45" x="43.0" y="258" width="82" height="30" rx="0" fill="white" stroke="none" stroke-width="0"/>
+<text id="text46" x="84" y="280" text-anchor="middle" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">Protect</text>
+<rect id="box47" x="164.0" y="258" width="72" height="30" rx="0" fill="white" stroke="none" stroke-width="0"/>
+<text id="text48" x="200" y="280" text-anchor="middle" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">Select</text>
+<rect id="box49" x="276.0" y="258" width="70" height="30" rx="0" fill="white" stroke="none" stroke-width="0"/>
+<text id="text50" x="311" y="280" text-anchor="middle" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">Reuse</text>
+<rect id="box51" x="50" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box52" x="49" y="315" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box53" x="88" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box54" x="87" y="315" width="32" height="32" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box55" x="165" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box56" x="164" y="315" width="32" height="32" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box57" x="203" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box58" x="202" y="315" width="32" height="32" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box59" x="278" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box60" x="277" y="315" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box61" x="316" y="316.8" width="32" height="32" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box62" x="315" y="315" width="32" height="32" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<text id="text63" x="85" y="388" text-anchor="middle" fill="#26343D" style="font-size:28px;fill:#26343D;font-style:italic;font-weight:normal">P<tspan baseline-shift="sub" font-size="18">t</tspan> ∪ D<tspan baseline-shift="sub" font-size="18">t</tspan></text>
+<text id="text64" x="200" y="388" text-anchor="middle" fill="#26343D" style="font-size:28px;fill:#26343D;font-style:italic;font-weight:normal">H<tspan baseline-shift="sub" font-size="18.2">t</tspan></text>
+<text id="text65" x="311" y="388" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Other rows</text>
+<text id="text66" x="85" y="425" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">All layers</text>
+<text id="text67" x="200" y="425" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">One stripe</text>
+<text id="text68" x="311" y="425" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">KV only</text>
+<path id="edge69" d="M 52 449 H 348" fill="none" stroke="#DDE2E5" stroke-width="1"/>
+<text id="text70" x="200" y="486" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:italic;font-weight:normal">|H| ≤ max(0, B − |D|)</text>
+<text id="text71" x="200" y="523" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:normal;font-weight:normal">History budget  B = 128</text>
+</g>
+<g id="relay-schedule">
+<text id="text72" x="444" y="126" text-anchor="middle" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">Layers</text>
+<text id="text73" x="547" y="80" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">Step t</text>
+<text id="text74" x="509" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Live</text>
+<text id="text75" x="571" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">History</text>
+<text id="text76" x="475" y="176" text-anchor="end" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">1–8</text>
+<rect id="box77" x="493" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box78" x="492" y="151" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box79" x="533" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box80" x="532" y="151" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box81" x="573" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box82" x="572" y="151" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<text id="text83" x="475" y="248" text-anchor="end" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">9–16</text>
+<rect id="box84" x="493" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box85" x="492" y="223" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box86" x="533" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box87" x="532" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box88" x="573" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box89" x="572" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<text id="text90" x="475" y="320" text-anchor="end" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">17–24</text>
+<rect id="box91" x="493" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box92" x="492" y="295" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box93" x="533" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box94" x="532" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box95" x="573" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box96" x="572" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<text id="text97" x="475" y="392" text-anchor="end" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">25–32</text>
+<rect id="box98" x="493" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box99" x="492" y="367" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box100" x="533" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box101" x="532" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box102" x="573" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box103" x="572" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<path id="edge104" d="M 532 189 H 582 C 594 189 594 197 606 197 H 616.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge104-head" points="620,197 613,200.5 613,193.5" fill="#8963A1" stroke="none"/>
+<rect id="box105" x="625" y="186" width="45" height="32" rx="6" fill="white" stroke="#8963A1" stroke-width="1.3"/>
+<text id="text106" x="647.5" y="209" text-anchor="middle" fill="#8963A1" style="font-size:26px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="16.900000000000002">8</tspan></text>
+<path id="edge107" d="M 670 202 C 683 202 681 217 696 217 H 716.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge107-head" points="720,217 713,220.5 713,213.5" fill="#8963A1" stroke="none"/>
+<text id="text108" x="721" y="80" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">Step t+1</text>
+<text id="text109" x="683" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Live</text>
+<text id="text110" x="745" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">History</text>
+<rect id="box111" x="667" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box112" x="666" y="151" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box113" x="707" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box114" x="706" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box115" x="747" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box116" x="746" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box117" x="667" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box118" x="666" y="223" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box119" x="707" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box120" x="706" y="223" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box121" x="747" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box122" x="746" y="223" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box123" x="667" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box124" x="666" y="295" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box125" x="707" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box126" x="706" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box127" x="747" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box128" x="746" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box129" x="667" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box130" x="666" y="367" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box131" x="707" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box132" x="706" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box133" x="747" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box134" x="746" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<path id="edge135" d="M 706 261 H 756 C 768 261 768 269 780 269 H 790.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge135-head" points="794,269 787,272.5 787,265.5" fill="#8963A1" stroke="none"/>
+<rect id="box136" x="799" y="258" width="45" height="32" rx="6" fill="white" stroke="#8963A1" stroke-width="1.3"/>
+<text id="text137" x="821.5" y="281" text-anchor="middle" fill="#8963A1" style="font-size:26px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="16.900000000000002">16</tspan></text>
+<path id="edge138" d="M 844 274 C 857 274 855 289 870 289 H 890.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge138-head" points="894,289 887,292.5 887,285.5" fill="#8963A1" stroke="none"/>
+<text id="text139" x="895" y="80" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">Step t+2</text>
+<text id="text140" x="857" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Live</text>
+<text id="text141" x="919" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">History</text>
+<rect id="box142" x="841" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box143" x="840" y="151" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box144" x="881" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box145" x="880" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box146" x="921" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box147" x="920" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box148" x="841" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box149" x="840" y="223" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box150" x="881" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box151" x="880" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box152" x="921" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box153" x="920" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box154" x="841" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box155" x="840" y="295" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box156" x="881" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box157" x="880" y="295" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box158" x="921" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box159" x="920" y="295" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box160" x="841" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box161" x="840" y="367" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box162" x="881" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box163" x="880" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box164" x="921" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box165" x="920" y="367" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<path id="edge166" d="M 880 333 H 930 C 942 333 942 341 954 341 H 964.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge166-head" points="968,341 961,344.5 961,337.5" fill="#8963A1" stroke="none"/>
+<rect id="box167" x="973" y="330" width="45" height="32" rx="6" fill="white" stroke="#8963A1" stroke-width="1.3"/>
+<text id="text168" x="995.5" y="353" text-anchor="middle" fill="#8963A1" style="font-size:26px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="16.900000000000002">24</tspan></text>
+<path id="edge169" d="M 1018 346 C 1031 346 1029 361 1044 361 H 1064.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge169-head" points="1068,361 1061,364.5 1061,357.5" fill="#8963A1" stroke="none"/>
+<text id="text170" x="1069" y="80" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">Step t+3</text>
+<text id="text171" x="1031" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">Live</text>
+<text id="text172" x="1093" y="123" text-anchor="middle" fill="#26343D" style="font-size:21px;fill:#26343D;font-style:normal;font-weight:normal">History</text>
+<rect id="box173" x="1015" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box174" x="1014" y="151" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box175" x="1055" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box176" x="1054" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box177" x="1095" y="152.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box178" x="1094" y="151" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box179" x="1015" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box180" x="1014" y="223" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box181" x="1055" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box182" x="1054" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box183" x="1095" y="224.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box184" x="1094" y="223" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box185" x="1015" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box186" x="1014" y="295" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box187" x="1055" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box188" x="1054" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box189" x="1095" y="296.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box190" x="1094" y="295" width="34" height="34" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box191" x="1015" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box192" x="1014" y="367" width="34" height="34" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box193" x="1055" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box194" x="1054" y="367" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box195" x="1095" y="368.8" width="34" height="34" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box196" x="1094" y="367" width="34" height="34" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box197" x="491" y="470" width="145" height="50" rx="9" fill="#F2EDF7" stroke="#26343D" stroke-width="1.5"/>
+<text id="text198" x="539" y="503" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Restore</text>
+<text id="text199" x="609" y="503" text-anchor="middle" fill="#8963A1" style="font-size:25px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="16.25">b</tspan></text>
+<rect id="box200" x="674" y="470" width="246" height="50" rx="9" fill="#F2EDF7" stroke="#26343D" stroke-width="1.5"/>
+<text id="text201" x="797.0" y="503.25" text-anchor="middle" fill="#26343D" style="font-size:25px;fill:#26343D;font-style:normal;font-weight:normal">Layers b+1 … b+w</text>
+<rect id="box202" x="966" y="470" width="155" height="50" rx="9" fill="#F2EDF7" stroke="#26343D" stroke-width="1.5"/>
+<text id="text203" x="1007" y="503" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Save</text>
+<text id="text204" x="1080" y="503" text-anchor="middle" fill="#8963A1" style="font-size:25px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="16.25">b+w</tspan></text>
+<path id="edge205" d="M 642 495 H 664.8" fill="none" stroke="#8963A1" stroke-width="2.2" style="stroke-linecap:butt"/>
+<polygon id="edge205-head" points="668,495 661,498.5 661,491.5" fill="#8963A1" stroke="none"/>
+<path id="edge206" d="M 926 495 H 956.8" fill="none" stroke="#8963A1" stroke-width="2.2" style="stroke-linecap:butt"/>
+<polygon id="edge206-head" points="960,495 953,498.5 953,491.5" fill="#8963A1" stroke="none"/>
+</g>
+<g id="cache-execution">
+<text id="text207" x="1261" y="78" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Active rows</text>
+<rect id="box208" x="1190" y="100.8" width="30" height="30" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box209" x="1189" y="99" width="30" height="30" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box210" x="1227" y="100.8" width="30" height="30" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box211" x="1226" y="99" width="30" height="30" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box212" x="1264" y="100.8" width="30" height="30" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box213" x="1263" y="99" width="30" height="30" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box214" x="1301" y="100.8" width="30" height="30" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box215" x="1300" y="99" width="30" height="30" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<path id="edge216" d="M 1260 135 V 172.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge216-head" points="1260,176 1256.5,169 1263.5,169" fill="#26343D" stroke="none"/>
+<rect id="box217" x="1190" y="182" width="132" height="49" rx="9" fill="#F0F6EA" stroke="#26343D" stroke-width="1.5"/>
+<text id="text218" x="1256.0" y="215.08" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">QKV</text>
+<text id="text219" x="1504" y="151" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">Layer ℓ KV</text>
+<text id="text220" x="1400" y="192" text-anchor="end" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">K</text>
+<rect id="box221" x="1414" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box222" x="1413" y="172" width="22" height="22" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box223" x="1441" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box224" x="1440" y="172" width="22" height="22" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box225" x="1468" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box226" x="1467" y="172" width="22" height="22" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box227" x="1495" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box228" x="1494" y="172" width="22" height="22" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box229" x="1522" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box230" x="1521" y="172" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box231" x="1549" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box232" x="1548" y="172" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box233" x="1576" y="173.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box234" x="1575" y="172" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<text id="text235" x="1400" y="224" text-anchor="end" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">V</text>
+<rect id="box236" x="1414" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box237" x="1413" y="204" width="22" height="22" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box238" x="1441" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box239" x="1440" y="204" width="22" height="22" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<rect id="box240" x="1468" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box241" x="1467" y="204" width="22" height="22" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box242" x="1495" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box243" x="1494" y="204" width="22" height="22" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<rect id="box244" x="1522" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box245" x="1521" y="204" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box246" x="1549" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box247" x="1548" y="204" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<rect id="box248" x="1576" y="205.8" width="22" height="22" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box249" x="1575" y="204" width="22" height="22" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<path id="edge250" d="M 1328 206 H 1376.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge250-head" points="1380,206 1373,209.5 1373,202.5" fill="#26343D" stroke="none"/>
+<text id="text251" x="1354" y="183" text-anchor="middle" fill="#26343D" style="font-size:22px;fill:#26343D;font-style:normal;font-weight:normal">Write</text>
+<path id="edge252" d="M 1256 237 V 282.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge252-head" points="1256,286 1252.5,279 1259.5,279" fill="#26343D" stroke="none"/>
+<text id="text253" x="1280" y="268" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:italic;font-weight:normal">Q</text>
+<rect id="box254" x="1184" y="293" width="145" height="49" rx="9" fill="#F0F6EA" stroke="#26343D" stroke-width="1.5"/>
+<text id="text255" x="1256.5" y="326.08" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Attention</text>
+<path id="edge256" d="M 1505 236 V 298 Q 1505 317 1486 317 H 1339.2" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge256-head" points="1336,317 1343,313.5 1343,320.5" fill="#26343D" stroke="none"/>
+<rect id="box257" x="1359" y="265" width="149" height="30" rx="0" fill="white" stroke="none" stroke-width="0"/>
+<text id="text258" x="1431" y="288" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Read all KV</text>
+<path id="edge259" d="M 1256 348 V 371.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge259-head" points="1256,375 1252.5,368 1259.5,368" fill="#26343D" stroke="none"/>
+<rect id="box260" x="1184" y="382" width="145" height="49" rx="9" fill="#F0F6EA" stroke="#26343D" stroke-width="1.5"/>
+<text id="text261" x="1256.5" y="415.08" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">FFN</text>
+<path id="edge262" d="M 1336 406 H 1391.8" fill="none" stroke="#8963A1" stroke-width="2.2" style="stroke-linecap:butt"/>
+<polygon id="edge262-head" points="1395,406 1388,409.5 1388,402.5" fill="#8963A1" stroke="none"/>
+<rect id="box263" x="1401" y="383" width="93" height="46" rx="8" fill="#F2EDF7" stroke="#8963A1" stroke-width="1.4"/>
+<text id="text264" x="1447" y="414" text-anchor="middle" fill="#8963A1" style="font-size:28px;fill:#8963A1;font-style:italic;font-weight:normal">h<tspan baseline-shift="sub" font-size="18.2">b+w</tspan></text>
+<text id="text265" x="1452" y="366" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Stripe end</text>
+<text id="text266" x="1531" y="413" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Save</text>
+<path id="edge267" d="M 1256 436 V 465.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge267-head" points="1256,469 1252.5,462 1259.5,462" fill="#26343D" stroke="none"/>
+<text id="text268" x="1347" y="457" text-anchor="middle" fill="#26343D" style="font-size:23px;fill:#26343D;font-style:normal;font-weight:normal">P only, ℓ = L</text>
+<rect id="box269" x="1176" y="475" width="173" height="67" rx="9" fill="#F0F6EA" stroke="#26343D" stroke-width="1.5"/>
+<text id="text270" x="1262" y="502" text-anchor="middle" fill="#26343D" style="font-size:27px;fill:#26343D;font-style:normal;font-weight:normal">LM head</text>
+<text id="text271" x="1262" y="529" text-anchor="middle" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Confidence</text>
+<path id="edge272" d="M 1355 509 H 1402.8" fill="none" stroke="#26343D" stroke-width="1.8" style="stroke-linecap:butt"/>
+<polygon id="edge272-head" points="1406,509 1399,512.5 1399,505.5" fill="#26343D" stroke="none"/>
+<rect id="box273" x="1412" y="483" width="191" height="50" rx="9" fill="#F2EDF7" stroke="#26343D" stroke-width="1.5"/>
+<text id="text274" x="1507.5" y="516.58" text-anchor="middle" fill="#26343D" style="font-size:26px;fill:#26343D;font-style:normal;font-weight:normal">Commit tokens</text>
+</g>
+<g id="shared-legend">
+<rect id="box275" x="153" y="612" width="1344" height="40" rx="8" fill="white" stroke="#A5ADB2" stroke-width="1.3" stroke-dasharray="2 4"/>
+<rect id="box276" x="181" y="621.8" width="23" height="23" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box277" x="180" y="620" width="23" height="23" rx="6" fill="#A8CA8D" stroke="none" stroke-width="0"/>
+<text id="text278" x="215" y="640" text-anchor="start" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Full-depth rows</text>
+<rect id="box279" x="476" y="621.8" width="23" height="23" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box280" x="475" y="620" width="23" height="23" rx="6" fill="#B29BCB" stroke="none" stroke-width="0"/>
+<text id="text281" x="510" y="640" text-anchor="start" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">History refresh</text>
+<rect id="box282" x="771" y="621.8" width="23" height="23" rx="6" fill="#E8E8E8" stroke="none" stroke-width="0"/>
+<rect id="box283" x="770" y="620" width="23" height="23" rx="6" fill="#CDCFD1" stroke="none" stroke-width="0"/>
+<text id="text284" x="805" y="640" text-anchor="start" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Cached KV</text>
+<path id="edge285" d="M 1043 632 H 1086.8" fill="none" stroke="#8963A1" stroke-width="2.4" style="stroke-linecap:butt"/>
+<polygon id="edge285-head" points="1090,632 1083,635.5 1083,628.5" fill="#8963A1" stroke="none"/>
+<text id="text286" x="1105" y="640" text-anchor="start" fill="#26343D" style="font-size:24px;fill:#26343D;font-style:normal;font-weight:normal">Boundary hidden state</text>
+</g>
+</svg>
